@@ -128,6 +128,101 @@ class NFLModel:
 
         print("Model evaluation completed.")
 
+    def evaluate_models_train_data(self):
+        """
+        Evaluates Linear Regression and Random Forest models using different
+        feature selection methods on training data only.
+        """
+        # Define models for evaluation
+        linear_model = LinearRegression()
+        rf_model = RandomForestRegressor(random_state=self.random_state)
+
+        # Initialize results dictionary
+        self.results = {'Method': [], 'Model': [], 'MAE': [], 'MSE': [], 'R2': []}
+
+        # Create feature sets based on selection methods
+        feature_sets = {
+            'Lasso': self.lasso_features,
+            'ElasticNet': self.elastic_net_features
+        }
+
+        # Evaluate models with each feature selection method
+        for method, features in feature_sets.items():
+            X_train_fs = self.X_train[features]
+            print(f"\nMethod: {method}")
+            print(f"X_train_fs shape: {X_train_fs.shape}")
+        
+            # Linear Regression
+            print(f"\nLinear Regression:")
+            print(f"Training shapes - X: {X_train_fs.shape}, y: {self.y_train.shape}")
+            mae_linear, mse_linear, r2_linear = self._evaluate_model(
+                linear_model, X_train_fs, X_train_fs, self.y_train, self.y_train
+            )
+            self.results['Method'].append(method)
+            self.results['Model'].append('Linear Regression')
+            self.results['MAE'].append(mae_linear)
+            self.results['MSE'].append(mse_linear)
+            self.results['R2'].append(r2_linear)
+
+            # Random Forest - Now using training data consistently
+            print(f"\nRandom Forest:")
+            print(f"Training shapes - X: {X_train_fs.shape}, y: {self.y_train.shape}")
+            mae_rf, mse_rf, r2_rf = self._evaluate_model(
+                rf_model, X_train_fs, X_train_fs, self.y_train, self.y_train
+            )
+            self.results['Method'].append(method)
+            self.results['Model'].append('Random Forest')
+            self.results['MAE'].append(mae_rf)
+            self.results['MSE'].append(mse_rf)
+            self.results['R2'].append(r2_rf)
+
+        print("Model evaluation completed.")
+
+    # def evaluate_models_train_data(self):
+    #     """
+    #     Evaluates Linear Regression and Random Forest models using different
+    #     feature selection methods and stores the results.
+    #     """
+    #     # Define models for evaluation
+    #     linear_model = LinearRegression()
+    #     rf_model = RandomForestRegressor(random_state=self.random_state)
+
+    #     # Initialize results dictionary
+    #     self.results = {'Method': [], 'Model': [], 'MAE': [], 'MSE': [], 'R2': []}
+
+    #     # Create feature sets based on selection methods
+    #     feature_sets = {
+    #         'Lasso': self.lasso_features,
+    #         'ElasticNet': self.elastic_net_features
+    #     }
+
+    #     # Evaluate models with each feature selection method
+    #     for method, features in feature_sets.items():
+    #         X_train_fs = self.X_train[features]
+    #         # X_test_fs = self.X_train[features]
+
+    #         # Linear Regression
+    #         mae_linear, mse_linear, r2_linear = self._evaluate_model(
+    #             linear_model, X_train_fs, X_train_fs, self.y_train, self.y_train
+    #         )
+    #         self.results['Method'].append(method)
+    #         self.results['Model'].append('Linear Regression')
+    #         self.results['MAE'].append(mae_linear)
+    #         self.results['MSE'].append(mse_linear)
+    #         self.results['R2'].append(r2_linear)
+
+    #         # Random Forest
+    #         mae_rf, mse_rf, r2_rf = self._evaluate_model(
+    #             rf_model, X_train_fs, X_train_fs, self.y_train, self.y_train
+    #         )
+    #         self.results['Method'].append(method)
+    #         self.results['Model'].append('Random Forest')
+    #         self.results['MAE'].append(mae_rf)
+    #         self.results['MSE'].append(mse_rf)
+    #         self.results['R2'].append(r2_rf)
+
+    #     print("Model evaluation completed.")
+
     def train_evaluate_rf_all_features(self):
         """
         Trains and evaluates a Random Forest model using all features.
