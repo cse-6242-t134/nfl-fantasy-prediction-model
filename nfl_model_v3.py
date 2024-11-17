@@ -32,7 +32,7 @@ class NFLModel:
         self.y_train = None
         self.y_test = None
         self.scaler = None
-        self.results = {'Model': [], 'Data': [], 'Hyper-parameters': [], 'MAE': [], 'MSE': [], 'R2': []}
+        self.results = {'Model': [], 'Data': [], 'MAE': [], 'MSE': [], 'R2': []}
 
 
     def preprocess_data(self):
@@ -69,17 +69,25 @@ class NFLModel:
         # rf_model = (RandomForestRegressor(random_state=self.random_state, max_depth=5)
         #             .fit(self.X_train_scaled, self.y_train))
         rf_model = RandomForestRegressor(random_state=self.random_state)
-        rf_hyperparams = self._best_hyperparams(rf_model, {'max_depth': [3, 5, 7]})
+        rf_hyperparams = self._best_hyperparams(rf_model, {'max_depth': [7]}) # 7 is better than 5 and 9
+        print(f'Random Forest hyperparams: {rf_hyperparams}')
         rf_model = (RandomForestRegressor(random_state=self.random_state, **rf_hyperparams)
                     .fit(self.X_train_scaled, self.y_train))
-        self._evaluate_model('Random Forest', rf_model, rf_hyperparams)
-        # print(self._best_hyperparams(rf_model, {'max_depth': [3, 5, 7]}))
+        self._evaluate_model('Random Forest', rf_model)
+        self.print_feature_importances(rf_model)
 
-        xgb_hyperparams = {'n_estimators': 2, 'max_depth': 5, 'learning_rate': 1}
-        xgb_model = (XGBRegressor(objective='reg:squarederror', **xgb_hyperparams)
-                     .fit(self.X_train_scaled, self.y_train))
-        
-        self._evaluate_model('XGBoost', xgb_model, xgb_hyperparams)
+        # elnet_model = ElasticNet(random_state=0)
+        # elnet_hyperparams = self._best_hyperparams(elnet_model, {'alpha': [0.01, 0.05, 0.1], 'l1_ratio': [0, 0.5, 1]})
+        # print(f'ElasticNet hyperparams: {elnet_hyperparams}')
+        # elnet_model = (ElasticNet(random_state=0, **elnet_hyperparams)
+        #             .fit(self.X_train_scaled, self.y_train))
+        # self._evaluate_model('ElasticNet', elnet_model)
+
+        # xgb_hyperparams = {'n_estimators': 2, 'max_depth': 5, 'learning_rate': 1}
+        # print(f'XGBoost hyperparams: {xgb_hyperparams}')
+        # xgb_model = (XGBRegressor(objective='reg:squarederror', **xgb_hyperparams)
+        #              .fit(self.X_train_scaled, self.y_train))
+        # self._evaluate_model('XGBoost', xgb_model)
 
     def _best_hyperparams(self, model, hyperparams):
         gscv = GridSearchCV(estimator = model, param_grid = hyperparams)
@@ -87,7 +95,7 @@ class NFLModel:
         return gscv.best_params_
 
 
-    def _evaluate_model(self, name, model, hyperparams):
+    def _evaluate_model(self, name, model):
         # model = Model(**hyperparams)
         # model.fit(self.X_train_scaled, self.y_train)
         for data in ['Train', 'Test']:
@@ -101,10 +109,14 @@ class NFLModel:
 
             self.results['Model'].append(name)
             self.results['Data'].append(data)
-            self.results['Hyper-parameters'].append(hyperparams)
             self.results['MAE'].append(mae)
             self.results['MSE'].append(mse)
             self.results['R2'].append(r2)
+
+    def print_feature_importances(self, model):
+        feature_importances = dict(zip(self.X_train.columns, model.feature_importances_))
+        feature_importances = sorted(feature_importances.items(), key=lambda x: x[1], reverse=True)
+        print(feature_importances)
 
 
     def get_results(self):
