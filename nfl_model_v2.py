@@ -127,6 +127,11 @@ class NFLModel:
             self.results['MSE'].append(mse_rf)
             self.results['R2'].append(r2_rf)
 
+            if method == 'All Features':
+                feature_importances = dict(zip(features, rf_model.feature_importances_))
+                feature_importances = sorted(feature_importances.items(), key=lambda x: x[1], reverse=True)
+                print(feature_importances)
+
         print("Model evaluation completed.")
 
     def evaluate_models_train(self):
