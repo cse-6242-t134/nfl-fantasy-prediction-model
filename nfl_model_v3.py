@@ -1,10 +1,11 @@
 import pandas as pd
 import numpy as np
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, Lasso, ElasticNet
 from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -31,7 +32,8 @@ class NFLModel:
         self.y_train = None
         self.y_test = None
         self.scaler = None
-        self.results = {'Model': [], 'Data': [], 'MAE': [], 'MSE': [], 'R2': []}
+        self.results = {'Model': [], 'Data': [], 'Hyper-parameters': [], 'MAE': [], 'MSE': [], 'R2': []}
+
 
     def preprocess_data(self):
         """
@@ -61,14 +63,32 @@ class NFLModel:
 
         print("Data preprocessing completed.")
 
+
     def train_all_models(self):
 
-        rf_model = (RandomForestRegressor(random_state=self.random_state, max_depth=5)
+        # rf_model = (RandomForestRegressor(random_state=self.random_state, max_depth=5)
+        #             .fit(self.X_train_scaled, self.y_train))
+        rf_model = RandomForestRegressor(random_state=self.random_state)
+        rf_hyperparams = self._best_hyperparams(rf_model, {'max_depth': [3, 5, 7]})
+        rf_model = (RandomForestRegressor(random_state=self.random_state, **rf_hyperparams)
                     .fit(self.X_train_scaled, self.y_train))
-        self.evaluate_model('Random Forest', rf_model)
+        self._evaluate_model('Random Forest', rf_model, rf_hyperparams)
+        # print(self._best_hyperparams(rf_model, {'max_depth': [3, 5, 7]}))
+
+        xgb_hyperparams = {'n_estimators': 2, 'max_depth': 5, 'learning_rate': 1}
+        xgb_model = (XGBRegressor(objective='reg:squarederror', **xgb_hyperparams)
+                     .fit(self.X_train_scaled, self.y_train))
+        
+        self._evaluate_model('XGBoost', xgb_model, xgb_hyperparams)
+
+    def _best_hyperparams(self, model, hyperparams):
+        gscv = GridSearchCV(estimator = model, param_grid = hyperparams)
+        gscv.fit(self.X_train_scaled, self.y_train)
+        return gscv.best_params_
 
 
-    def evaluate_model(self, name, model):
+    def _evaluate_model(self, name, model, hyperparams):
+        # model = Model(**hyperparams)
         # model.fit(self.X_train_scaled, self.y_train)
         for data in ['Train', 'Test']:
             y_actual = self.y_train if data == 'Train' else self.y_test
@@ -81,12 +101,32 @@ class NFLModel:
 
             self.results['Model'].append(name)
             self.results['Data'].append(data)
+            self.results['Hyper-parameters'].append(hyperparams)
             self.results['MAE'].append(mae)
             self.results['MSE'].append(mse)
             self.results['R2'].append(r2)
+
 
     def get_results(self):
         """
         Returns the evaluation results as a pandas DataFrame.
         """
         return pd.DataFrame(self.results)
+    
+
+    def _plot_predictions(self, y_true, y_pred, title):
+        """
+        Plots actual vs. predicted values.
+
+        Parameters:
+        - y_true: actual target values.
+        - y_pred: predicted target values.
+        - title: title for the plot.
+        """
+        plt.figure(figsize=(8, 6))
+        sns.scatterplot(x=y_true, y=y_pred)
+        sns.lineplot(x=y_true, y=y_true, color='red')  # Line showing perfect prediction
+        plt.xlabel('Actual Values')
+        plt.ylabel('Predicted Values')
+        plt.title(title)
+        plt.show()
