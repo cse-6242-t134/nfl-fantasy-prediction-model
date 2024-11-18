@@ -68,13 +68,25 @@ class NFLModel:
 
         # rf_model = (RandomForestRegressor(random_state=self.random_state, max_depth=5)
         #             .fit(self.X_train_scaled, self.y_train))
+
         rf_model = RandomForestRegressor(random_state=self.random_state)
-        rf_hyperparams = self._best_hyperparams(rf_model, {'max_depth': [7]}) # 7 is better than 5 and 9
+        rf_hyperparams = self._best_hyperparams(rf_model, {'max_depth': [3, 5]}) # 7 is better than 5 and 9, if all features
         print(f'Random Forest hyperparams: {rf_hyperparams}')
         rf_model = (RandomForestRegressor(random_state=self.random_state, **rf_hyperparams)
                     .fit(self.X_train_scaled, self.y_train))
         self._evaluate_model('Random Forest', rf_model)
         self.print_feature_importances(rf_model)
+
+        # best_params = ['fantasy_points_mean_last5', 'fantasy_points_mean_career', 'n_games_career', 'fantasy_points_mean_prior_season', 'fantasy_points_mean_season', 'total_fg_missed_mean_career',
+        #                'fantasy_points_mean_season_def', 'fantasy_points_mean_last5_def', 'fantasy_points_mean_prior_season_def',
+        #                'temp', 'wind', 'roof', 'report_primary_injury', 'report_status']
+        # rf_model_reduced = RandomForestRegressor(random_state=self.random_state)
+        # rf_hyperparams = self._best_hyperparams(rf_model_reduced, {'max_depth': [5, 7, 9]}) # 7 is better than 5 and 9
+        # print(f'Random Forest hyperparams: {rf_hyperparams}')
+        # rf_model_reduced = (RandomForestRegressor(random_state=self.random_state, **rf_hyperparams)
+        #             .fit(self.X_train_scaled[:, best_params], self.y_train))
+        # self._evaluate_model('Random Forest Reduced', rf_model_reduced, params=best_params)
+        # self.print_feature_importances(rf_model_reduced)
 
         # elnet_model = ElasticNet(random_state=0)
         # elnet_hyperparams = self._best_hyperparams(elnet_model, {'alpha': [0.01, 0.05, 0.1], 'l1_ratio': [0, 0.5, 1]})
@@ -101,7 +113,6 @@ class NFLModel:
         for data in ['Train', 'Test']:
             y_actual = self.y_train if data == 'Train' else self.y_test
             x_actual = self.X_train_scaled if data == 'Train' else self.X_test_scaled
-
             y_pred = model.predict(x_actual)
             mae = mean_absolute_error(y_actual, y_pred)
             mse = mean_squared_error(y_actual, y_pred)
