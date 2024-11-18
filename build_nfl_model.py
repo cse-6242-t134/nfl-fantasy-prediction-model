@@ -152,6 +152,8 @@ def generate_features(roster_data,pbp_df,weekly_df,schedules_df, position = 'rb_
             }).reset_index()
 
 
+            
+
             ## Grabbing seasonal info
 
 
@@ -172,12 +174,42 @@ def generate_features(roster_data,pbp_df,weekly_df,schedules_df, position = 'rb_
 
             rusher_receiver_df = pd.concat([receiver_stats,rushing_stats])
 
+
+
+
             game_score_info = schedules_df[['season','home_score','away_score','game_id']].copy()
 
 
             rusher_receiver_df = rusher_receiver_df.merge(game_score_info, on = ['game_id','season'], how = 'inner')
 
+            rusher_receiver_df = rusher_receiver_df.groupby(['game_id', 'game_date', 'week', 'div_game', 'posteam','defteam','home_team', 'away_team', 'weather', 'stadium',  'spread_line', 'total_line', 'roof', 'surface', 'temp', 'wind', 'home_coach', 'away_coach', 'player_id', 'player_name','season']).agg({
+                'passing_yards': 'sum',
+                'air_yards': 'sum',
+                'pass_touchdown': 'sum', 
+                'pass_attempt': 'sum',
+                'reception': 'sum',
+                'interception': 'sum',
+                'rush_attempt': 'sum',
+                'rushing_yards': 'sum',# Sum passing yards
+                'rush_touchdown': 'sum',
+                'lateral_rush': 'sum',
+                'receiving_yards': 'sum',
+                'yards_after_catch': 'sum',
+                'touchdown':'sum',
+                'fumble': 'sum',
+                'two_points': 'sum'
+            }).reset_index()
 
+
+
+            rusher_receiver_df.rename(columns = {'defteam':'opponent_team'} , inplace = True )
+
+
+            # #Checking the passing stats dataframe
+            # rusher_receiver_df.head(2)
+
+
+            rusher_receiver_df = rusher_receiver_df.drop_duplicates()
 
             rusher_receiver_df['fantasy_points'] = ((rusher_receiver_df['passing_yards']/25 )
                                                     + (rusher_receiver_df['pass_touchdown'] * 4) + 
@@ -668,7 +700,7 @@ def run_entire_model_process(position = "rb_wr"):
         df_combined = generate_features()
 
 
-        model,df = train_model(df_combined)
+        model,df,x_train,x_test,y_train,y_test = train_model(df_combined)
 
     else:
         print("provide relevant position")
