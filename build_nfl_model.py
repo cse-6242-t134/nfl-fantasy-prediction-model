@@ -18,15 +18,42 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 rb_wr_features = [
-    'prior_ssn_avg_fp', 'n_games_career', 'n_games_season', 'fantasy_points_mean_career', 
-    'fantasy_points_mean_season', 'fantasy_points_total_season', 'fantasy_points_mean_last5',
-    'fantasy_points_total_last5', 'reception_mean_career', 'reception_mean_season', 'reception_total_season',
-    'reception_mean_last5', 'reception_total_last5', 'reception_last', 'rushing_yards_mean_season', 'rushing_yards_last',
-    'touchdown_total_season', 'touchdown_total_last5', 'receiving_yards_mean_career', 'receiving_yards_total_career',
-    'receiving_yards_mean_season', 'receiving_yards_total_season', 'receiving_yards_mean_last5', 'receiving_yards_total_last5',
-    'fumble_mean_career', 'passing_yards_mean_career', 'passing_yards_total_career', 'passing_yards_mean_season', 'passing_yards_total_season',
-    'passing_yards_mean_last5', 'passing_yards_total_last5', 'pass_touchdown_mean_career', 'pass_touchdown_total_career', 'two_points_total_career',
-    'points_allowed_mean_season', 'points_allowed_mean_last5']
+    'prior_ssn_avg_fp',
+    'n_games_career',
+    'n_games_season',
+    'fantasy_points_mean_career', 
+    'fantasy_points_mean_season',
+    'fantasy_points_total_season',
+    'fantasy_points_mean_last5',
+    'fantasy_points_total_last5',
+    'reception_mean_career',
+    'reception_mean_season',
+    'reception_total_season',
+    'reception_mean_last5',
+    'reception_total_last5',
+    'reception_last',
+    'rushing_yards_mean_season',
+    'rushing_yards_last',
+    'touchdown_total_season',
+    'touchdown_total_last5',
+    'receiving_yards_mean_career',
+    'receiving_yards_total_career',
+    'receiving_yards_mean_season',
+    'receiving_yards_total_season',
+    'receiving_yards_mean_last5',
+    'receiving_yards_total_last5',
+    'fumble_mean_career',
+    'passing_yards_mean_career',
+    'passing_yards_total_career',
+    'passing_yards_mean_season',
+    'passing_yards_total_season',
+    'passing_yards_mean_last5',
+    'passing_yards_total_last5',
+    'pass_touchdown_mean_career',
+    'pass_touchdown_total_career',
+    'two_points_total_career',
+    'points_allowed_mean_season',
+    'points_allowed_mean_last5']
 
 qb_features = ['div_game',
  'wind',
@@ -97,8 +124,6 @@ class NFLModel:
         Initializes the NFLModel class.
 
         Parameters:
-        - data: pandas DataFrame containing the dataset.
-        - target_variable: string, name of the target variable column.
         - test_size: float, proportion of the dataset to include in the test split.
         - random_state: int, random seed for reproducibility.
         """
