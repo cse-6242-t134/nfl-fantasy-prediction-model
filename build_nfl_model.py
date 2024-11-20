@@ -1,4 +1,5 @@
 import warnings 
+import os
 import pandas as pd
 import numpy as np
 import nfl_data_py as nfl
@@ -6,12 +7,17 @@ import datetime as dt
 import copy
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, Lasso, ElasticNet
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dropout, Dense
+from tensorflow.keras.callbacks import EarlyStopping
+import joblib  # For saving/loading models
 
 # Suppress FutureWarnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -119,45 +125,197 @@ kicker_defense_features = ['n_games_career',
  'wind']
 
 class NFLModel:
-    def __init__(self, test_size=0.2, random_state=42):
+    def __init__(self, position='QB', test_size=0.2, random_state=42):
         """
         Initializes the NFLModel class.
 
         Parameters:
+        - position: str, the position group for the model ('QB', 'Kicker', 'RW').
         - test_size: float, proportion of the dataset to include in the test split.
         - random_state: int, random seed for reproducibility.
         """
-        self.target_variable = 'fantasy_points'
+        self.position = position.upper()
         self.test_size = test_size
         self.random_state = random_state
-        self.roster_data,self.pbp_df,self.schedules_df = self.load_data()
-        self.rb_wr_features = rb_wr_features
-        self.kicker_defense_features = kicker_defense_features
-        self.qb_features = qb_features
-        self.kicker_defense_features_df = None
-        self.qb_features_df = None
-        self.rusher_receiver_features_df = None
-        self.qb_x_train = None
-        self.qb_x_test = None
-        self.qb_y_train = None
-        self.qb_y_test = None
-        self.qb_model = None
-        self.rb_wr_x_train = None
-        self.rb_wr_x_test = None
-        self.rb_wr_y_train = None
-        self.rb_wr_y_test = None
-        self.rb_wr_model = None
-        self.kicker_defense_x_train = None
-        self.kicker_defense_x_test = None
-        self.kicker_defense_y_train = None
-        self.kicker_defense_y_test = None
-        self.kicker_defense_model = None
+
+        # Load the data
+        self.roster_data, self.pbp_df, self.schedules_df = self.load_data()
+
+        # Map positions to features and dataframes dynamically
+        self.position_features_map = {
+            'QB': {
+                'features': qb_features,
+                'generate_features_method': self.generate_qb_features,
+                'features_df': 'qb_features_df'
+            },
+            'KICKER': {
+                'features': kicker_defense_features,
+                'generate_features_method': self.generate_features_kicker_defense,
+                'features_df': 'kicker_defense_features_df'
+            },
+            'RW': {
+                'features': rb_wr_features,
+                'generate_features_method': self.generate_features_rb_wr,
+                'features_df': 'rusher_receiver_features_df'
+            }
+        }
+
+        if self.position not in self.position_features_map:
+            raise ValueError("Invalid position. Please choose 'QB', 'Kicker', or 'RW'.")
+
+        # Set features and dataframes dynamically
+        self.features = self.position_features_map[self.position]['features']
+        self.generate_features_method = self.position_features_map[self.position]['generate_features_method']
+        self.features_df_name = self.position_features_map[self.position]['features_df']
+
+        # Initialize placeholders for position-specific data
+        self.features_df = self.generate_features()
+        self.x_train = None
+        self.x_test = None
+        self.y_train = None
+        self.y_test = None
+        self.lr_model = None
+        self.rf_model = None
+        self.lstm_model = None
+        self.scaler = None
+        self.results = {}
+
+
+    def load_data(self):
+        """
+        Loads the required NFL data.
+
+        Returns:
+        - roster_data: DataFrame with player roster information.
+        - pbp_df: DataFrame with play-by-play data.
+        - schedules_df: DataFrame with game schedules.
+        """
+        roster_data = nfl.import_seasonal_rosters(
+            list(range(1999, 2025))
+        )
+        pbp_df = pd.DataFrame(
+            nfl.import_pbp_data(list(range(1999, 2025)))
+        )
+        schedules_df = pd.DataFrame(
+            nfl.import_schedules(list(range(1999, 2025)))
+        )
+        return roster_data, pbp_df, schedules_df
+
+    def generate_features(self):
+        """
+        Calls the appropriate feature generation method based on the position.
+        """
+        self.generate_features_method()
+        return getattr(self, self.features_df_name)
+
+
+    def preprocess_data(self, target_variable='fantasy_points'):
+        """
+        Preprocesses the data for the specified position.
+
+        Parameters:
+        - target_variable: str, the target variable for prediction.
+
+        Returns:
+        - x_train, x_test, y_train, y_test: Scaled and split datasets.
+        """
+        # if self.features_df is None:
+        #     raise ValueError("Features not generated. Call generate_features() first.")
+
+        # Separate features and target
+        df = self.features_df[self.features + [target_variable]].copy()
+        df = self.get_dummy_variables(df)
+
+        x = df.drop(columns=[target_variable])
+        y = df[target_variable]
+
+        # Split data into training and testing sets
+        x_train_raw, x_test_raw, y_train, y_test = train_test_split(
+            x, y, test_size=self.test_size, random_state=self.random_state
+        )
+
+        # Align the training and testing data
+        x_train, x_test = x_train_raw.align(x_test_raw, join='left', axis=1, fill_value=0)
+
+        # Standardize data
+        self.scaler = StandardScaler()
+        x_train_scaled = self.scaler.fit_transform(x_train)
+        x_test_scaled = self.scaler.transform(x_test)
+
+        self.x_train, self.x_test, self.y_train, self.y_test = (
+            x_train_scaled,
+            x_test_scaled,
+            y_train.values.ravel(),
+            y_test.values.ravel(),
+        )
+
+
+    def train_evaluate_model(self, model_type='LinearRegression'):
+        """
+        Trains the specified model for the current position and evaluates its performance.
+
+        Parameters:
+        - model_type: str, the type of model to train ('LinearRegression', 'RandomForest').
+
+        Raises:
+        - ValueError: If the model type is unsupported.
+        """
+        # Initialize the model based on the type
+        if model_type == 'LinearRegression':
+            self.lr_model = LinearRegression()
+            model = self.lr_model
+        elif model_type == 'RandomForest':
+            self.rf_model = RandomForestRegressor(random_state=self.random_state)
+            model = self.rf_model
+        else:
+            raise ValueError(f"Unsupported model type: {model_type}. Choose 'LinearRegression' or 'RandomForest'.")
+
+        # Train the model
+        print(f"Training {model_type} model...")
+        model.fit(self.x_train, self.y_train)
+        print(f"{model_type} model trained successfully.")
+
+        # Evaluate the model
+        self.evaluate_model(model=model, model_name=model_type)
+
+
+    def evaluate_model(self, model=None, model_name=None):
+        """
+        Evaluates the trained model using the test data.
+
+        Parameters:
+        - model: Trained machine learning model to evaluate.
+        - model_name: str, name of the model (e.g., 'LinearRegression', 'RandomForest').
+
+        Returns:
+        - metrics: dict containing evaluation metrics (MAE, MSE, R2).
+
+        Raises:
+        - ValueError: If no model is provided.
+        """
+        if model is None:
+            raise ValueError("Model has not been trained yet. Provide a valid model to evaluate.")
+
+        # Make predictions
+        print(f"Evaluating {model_name} model...")
+        y_pred = model.predict(self.x_test)
+
+        # Calculate evaluation metrics
+        mae = mean_absolute_error(self.y_test, y_pred)
+        mse = mean_squared_error(self.y_test, y_pred)
+        r2 = r2_score(self.y_test, y_pred)
+
+        # Log the results
+        print(f"{model_name} Evaluation Results - MAE: {mae:.2f}, MSE: {mse:.2f}, R2: {r2:.2f}")
+
+        # Store metrics
+        metrics = {'MAE': mae, 'MSE': mse, 'R2': r2}
+        self.results[model_name] = metrics
 
 
     def calc_agg_stats(self,group, fields, career=True):
         '''Helper function used to generate lagged stats within various windows of time
         '''
-
         # Create a copy to avoid modifying the original
         # df = pd.DataFrame({'game_date': group['game_date']}, index=group.index)
         df = pd.DataFrame(index=group.index)
@@ -176,8 +334,6 @@ class NFLModel:
         # df['n_games_prior_season'] = group_sorted.groupby(
         #     group_sorted.index.get_level_values('season')
         # ).transform('size').shift()
-
-
 
         # Calculate aggregate stats
         for field in fields:
@@ -199,8 +355,6 @@ class NFLModel:
             # Last Game
             df[f'{field}_last'] = group_sorted[field].shift()
         return df
-
-
 
 
     def calc_agg_stats_kicker_d(self,group, fields, career=True):
@@ -274,21 +428,6 @@ class NFLModel:
         return combined
 
 
-    def load_data(self):
-        '''
-        Method returns four dataframes that will be used to generate features.
-
-        Paramaters: None
-
-        Returns = roster_data, pbp_df, weekly_df,schedules_df
-        
-        '''
-        self.roster_data = nfl.import_seasonal_rosters([2024,2023,2022,2021,2020,2019,2018,2017,2016,2015,2014,2013,2012,2011,2010,2009,2008,2007,2006,2005,2004,2003,2002,2001,2000,1999])
-        self.pbp_df = pd.DataFrame(nfl.import_pbp_data([2024,2023,2022,2021,2020,2019,2018,2017,2016,2015,2014,2013,2012,2011,2010,2009,2008,2007,2006,2005,2004,2003,2002,2001,2000,1999]))
-        self.schedules_df = pd.DataFrame(nfl.import_schedules([2024,2023,2022,2021,2020,2019,2018,2017,2016,2015,2014,2013,2012,2011,2010,2009,2008,2007,2006,2005,2004,2003,2002,2001,2000,1999]))
-
-        return self.roster_data,self.pbp_df,self.schedules_df
-
     def generate_features_rb_wr(self):
         '''
         Method that returns the dataframe of a certain position group with aggregated features. 
@@ -303,18 +442,13 @@ class NFLModel:
         df_combined = Dataframe with calculated features for a given position group.
         
         '''
-
-       
         team = self.roster_data[['season','player_id','team','depth_chart_position']]
 
         receiver_rusher_stats =  self.pbp_df[(self.pbp_df['receiver_player_id'].notnull()) | (self.pbp_df['rusher_player_id'].notnull())]
                                 
-
         receiver_rusher_stats['two_points'] = np.where(receiver_rusher_stats['two_point_conv_result'] == 'success',1,0)
                                 
         receiver_rusher_stats.rename(columns = {'complete_pass':'reception'},inplace = True)
-
-
 
         receiver_stats= receiver_rusher_stats.groupby(['game_id', 'game_date', 'week','div_game','posteam','defteam', 'home_team', 'away_team', 'weather', 'stadium',  'spread_line', 'total_line', 'roof', 'surface', 'temp', 'wind', 'home_coach', 'away_coach', 'receiver_player_id', 'receiver_player_name','season']).agg({
             'passing_yards': 'sum',
@@ -355,9 +489,7 @@ class NFLModel:
 
         ## Grabbing seasonal info
 
-
         team['team'] = team['team'].replace({'OAK':'LV', 'STL':'LA', 'SD':'LAC','HST':'HOU', 'BLT':'BAL', 'CLV':'CLE','SL':'LA','ARZ':'ARI'})
-
 
         # team.rename(columns = {'player_id':'passer_player_id'},inplace = True)
 
@@ -370,14 +502,9 @@ class NFLModel:
 
         receiver_stats.rename(columns = {'receiver_player_name':'player_name'}, inplace = True)
 
-
         rusher_receiver_df = pd.concat([receiver_stats,rushing_stats])
 
-
-
-
         game_score_info = self.schedules_df[['season','home_score','away_score','game_id']].copy()
-
 
         rusher_receiver_df = rusher_receiver_df.merge(game_score_info, on = ['game_id','season'], how = 'inner')
 
@@ -399,13 +526,10 @@ class NFLModel:
         'two_points': 'sum'
         }).reset_index()
 
-
         rusher_receiver_df.rename(columns = {'defteam':'opponent_team'} , inplace = True )
-
 
         # #Checking the passing stats dataframe
         # rusher_receiver_df.head(2)
-
 
         rusher_receiver_df = rusher_receiver_df.drop_duplicates()
 
@@ -419,13 +543,11 @@ class NFLModel:
                                                 (rusher_receiver_df['two_points'] * 2))
         
 
-
         calculating_prior_points = rusher_receiver_df[['player_name','season','fantasy_points']].copy()
 
         calculating_prior_points['prior_ssn_avg_fp'] = calculating_prior_points.groupby(['player_name','season'])['fantasy_points'].transform('mean')
 
         calculating_prior_points = calculating_prior_points.drop_duplicates()
-
 
         calculating_prior_points.rename(columns = {'season':'actual_season'}, inplace = True)
 
@@ -435,8 +557,6 @@ class NFLModel:
 
         rusher_receiver_df = rusher_receiver_df.drop_duplicates()
 
-
-        
         df_rusher_receiver_game_level = rusher_receiver_df.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'opponent_team', 'player_name', 'player_id']).agg({
             # Game level
             'home_team': 'first',
@@ -466,14 +586,10 @@ class NFLModel:
         df_rusher_receiver_game_level.drop(columns=['home_team', 'away_team'], inplace=True)
         fields = ['fantasy_points','reception','rushing_yards','touchdown','receiving_yards','fumble','passing_yards','pass_touchdown','two_points']
 
-
         # Apply the function
         df_rusher_receiver_game_level = df_rusher_receiver_game_level.groupby(['player_name', 'player_id']).apply(self.calc_agg_stats, fields=fields)
 
-
-
-        df_rusher_receiver_game_level = df_rusher_receiver_game_level.reset_index(0).reset_index(0).drop(columns = ['player_name','player_id']).reset_index()
-
+        df_rusher_receiver_game_level = df_rusher_receiver_game_level.reset_index(0).reset_index(0).reset_index()
 
         schedules_df_copy = self.schedules_df[self.schedules_df['game_id'].isin(self.schedules_df['game_id'].unique()) & (self.schedules_df['gameday'] >= '2001-09-09')]
         schedules_df_copy.rename(columns = {'gameday':'game_date'}, inplace = True)
@@ -491,32 +607,24 @@ class NFLModel:
 
         group_sorted = points_allowed_df.sort_values('week')
 
-        pa_df = group_sorted.groupby(['team']).apply(self.calc_agg_stats, fields=['points_allowed']).reset_index(0).drop(columns = 'team').reset_index()[['game_id','game_date','season','week','team','points_allowed_mean_season','points_allowed_mean_last5']]
-
+        pa_df = group_sorted.groupby(['team']).apply(self.calc_agg_stats, fields=['points_allowed']).reset_index(0).reset_index()[['game_id','game_date','season','week','team','points_allowed_mean_season','points_allowed_mean_last5']]
 
         pa_df.rename(columns = {'team':'opponent_team'}, inplace = True)
 
-
-        
         rusher_receiver_features = rusher_receiver_df.merge(df_rusher_receiver_game_level, how = 'inner' ,on = ['game_id','game_date','week','season','posteam','opponent_team','player_name','player_id'])
         # rusher_receiver_features['opponent_team'] = np.where(rusher_receiver_features['team'] == rusher_receiver_features['home_team'],rusher_receiver_features['away_team'],rusher_receiver_features['home_team'])
         rusher_receiver_features = rusher_receiver_features.merge(pa_df , how = 'inner',on = ['game_date','season','week','opponent_team','game_id'])
 
-
         rusher_receiver_features = rusher_receiver_features.fillna(0)
 
-
         self.rusher_receiver_features_df = rusher_receiver_features.copy()
-                            
-    
+
 
     def generate_qb_features(self):
         
         passing_stats = self.pbp_df[~self.pbp_df['passer_player_id'].isna()].copy()
 
-
         passing_stats['two_points'] = np.where(passing_stats['two_point_conv_result'] == 'success',1,0)
-
 
         passing_stats = passing_stats.groupby(['game_id', 'game_date','season', 'week', 'div_game', 'home_team', 'away_team','posteam','defteam', 'weather', 'location', 'stadium',  'spread_line', 'total_line', 'roof', 'surface', 'temp', 'wind', 'home_coach', 'away_coach', 'passer_player_id', 'passer_player_name']).agg({
                     'passing_yards': 'sum',
@@ -558,7 +666,6 @@ class NFLModel:
 
         calculating_prior_points = calculating_prior_points.drop_duplicates()
 
-
         calculating_prior_points.rename(columns = {'season':'actual_season'}, inplace = True)
 
         calculating_prior_points['season'] = calculating_prior_points['actual_season'] + 1
@@ -567,9 +674,7 @@ class NFLModel:
 
         passing_stats = passing_stats.drop_duplicates()
 
-
         passing_stats['home_flag'] = np.where(passing_stats['opponent_team'] == passing_stats['home_team'], 0,1)
-
 
         df_game_level = passing_stats.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'opponent_team', 'player_name', 'player_id']).agg({
         # Game level
@@ -600,8 +705,7 @@ class NFLModel:
         # Apply the function
         df_game_level = df_game_level.groupby(['player_name', 'player_id']).apply(self.calc_agg_stats, fields=fields)
 
-        df_game_level = df_game_level.reset_index(0).reset_index(0).drop(columns = ['player_name','player_id']).reset_index()
-
+        df_game_level = df_game_level.reset_index(0).reset_index(0).reset_index()
 
         schedules_df_copy = self.schedules_df[self.schedules_df['game_id'].isin(self.schedules_df['game_id'].unique()) & (self.schedules_df['gameday'] >= '2001-09-09')]
         schedules_df_copy.rename(columns = {'gameday':'game_date'}, inplace = True)
@@ -619,24 +723,17 @@ class NFLModel:
 
         group_sorted = points_allowed_df.sort_values('week')
 
-        pa_df = group_sorted.groupby(['team']).apply(self.calc_agg_stats, fields=['points_allowed']).reset_index(0).drop(columns = 'team').reset_index()[['game_id','game_date','season','week','team','points_allowed_mean_season','points_allowed_mean_last5']]
-
+        pa_df = group_sorted.groupby(['team']).apply(self.calc_agg_stats, fields=['points_allowed']).reset_index(0).reset_index()[['game_id','game_date','season','week','team','points_allowed_mean_season','points_allowed_mean_last5']]
 
         pa_df.rename(columns = {'team':'opponent_team'}, inplace = True)
-
-
-                    
+        
         passing_stats = passing_stats.merge(df_game_level, how = 'inner' ,on = ['game_id','game_date','week','season','posteam','opponent_team','player_name','player_id'])
         # rusher_receiver_features['opponent_team'] = np.where(rusher_receiver_features['team'] == rusher_receiver_features['home_team'],rusher_receiver_features['away_team'],rusher_receiver_features['home_team'])
         passing_stats = passing_stats.merge(pa_df , how = 'inner',on = ['game_date','season','week','opponent_team','game_id'])
 
-
         passing_stats = passing_stats.fillna(0)
 
-
         self.qb_features_df = passing_stats.copy()
-
-
 
 
     def generate_features_kicker_defense(self):
@@ -673,9 +770,6 @@ class NFLModel:
 
         # Final log for confirmation
         print("Data processing for 'df_kicker_pbp' completed.")
-
-
-
 
         # Set extra point distance based on year and create flags for XP attempts and success
         df_kicker_pbp['xp_distance'] = np.where(df_kicker_pbp['game_date'].dt.year < 2015, 19, 33)
@@ -717,7 +811,7 @@ class NFLModel:
 
         # Log completion message
         print("Kicker play-by-play data processing completed successfully.")
-        df_kicker_game_level_stadium = df_kicker_pbp.groupby(['game_id', 'game_date', 'week', 'season', 'stadium'], as_index=False).agg({
+        df_kicker_game_level_stadium = df_kicker_pbp.groupby(['game_id', 'game_date', 'week', 'season', 'stadium']).agg({
             # Game level
             'home_team': 'first',
             'roof': 'first',
@@ -725,7 +819,7 @@ class NFLModel:
             'wind': 'first',
         }).sort_values(by=['game_date'], ascending=False)
 
-        df_kicker_game_level = df_kicker_pbp.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam', 'kicker_player_name', 'kicker_player_id'], as_index=False).agg({
+        df_kicker_game_level = df_kicker_pbp.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam', 'kicker_player_name', 'kicker_player_id']).agg({
             # Game level
             'home_team': 'first',
             'away_team': 'first',
@@ -775,8 +869,7 @@ class NFLModel:
         ).reset_index(drop=True).round(2)
         df_kicker_game_level_agg = df_kicker_game_level_agg.drop(columns=df_kicker_game_level_agg.loc[:, "fantasy_points":"home"].columns)
 
-
-        df_kicker_game_level_agg_by_game = df_kicker_game_level.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam'], as_index=False).agg({
+        df_kicker_game_level_agg_by_game = df_kicker_game_level.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam']).agg({
             # Play level
             'fantasy_points': 'sum',
             'total_fg_made': 'sum',
@@ -833,7 +926,6 @@ class NFLModel:
         columns_to_drop = ['home_team']
         df_combined.drop(columns=columns_to_drop, inplace=True, errors='ignore')
 
-
         # Reset index
         df_combined.reset_index(drop=True, inplace=True)
 
@@ -842,39 +934,6 @@ class NFLModel:
 
 
         self.kicker_defense_features_df = df_combined.fillna(0)
-
-
-
-    def preprocess_data(self,data,target_variable):
-            """
-            Preprocesses the data by splitting into training and testing sets,
-            converting categorical variables to dummy variables, and scaling the features.
-            """
-            # Separate features and target
-            X = data.drop(columns=[target_variable])
-            y = data[target_variable]
-
-            # Split data into training and testing sets
-            X_train_raw, X_test_raw, y_train, y_test = train_test_split(
-                X, y, test_size=.2, random_state= 42
-            )
-
-            # Align the training and testing data
-            X_train, X_test = X_train_raw.align(X_test_raw, join='left', axis=1, fill_value=0)
-
-            # Convert y_train and y_test to 1D arrays if necessary
-            y_train = y_train.values.ravel()
-            y_test = y_test.values.ravel()
-
-            # Standardize data
-            scaler = StandardScaler()
-            X_train_scaled = scaler.fit_transform(X_train)
-            X_test_scaled = scaler.transform(X_test)
-
-
-            return X_train_scaled,X_test_scaled,y_train,y_test
-
-
 
 
     def get_dummy_variables(self,df, drop_first=True, dummy_na=False):
@@ -907,48 +966,203 @@ class NFLModel:
         return df_dummies
     
 
-    def train_qb_model(self):
-        df = self.qb_features_df[self.qb_features + ['fantasy_points']].copy()
-        df = self.get_dummy_variables(df)
+    def train_evaluate_rf_all_features(self):
+        """
+        Trains and evaluates a Random Forest model using all features.
+        Stores the result in the 'results' dictionary.
 
-        self.qb_x_train,self.qb_x_test,self.qb_y_train,self.qb_y_test = self.preprocess_data(df, 'fantasy_points')
+        Returns:
+        - model: the machine learning model to evaluate.
+        """
+        # Define the Random Forest model
+        rf_model = RandomForestRegressor(random_state=self.random_state)
+
+        # Train and evaluate the model using all features
+        mae_rf, mse_rf, r2_rf = self._evaluate_model(
+            rf_model, self.X_train, self.X_test, self.y_train, self.y_test
+        )
+
+        # Initialize results dictionary if not already done
+        if self.results is None:
+            self.results = {'Method': [], 'Model': [], 'MAE': [], 'MSE': [], 'R2': []}
+
+        # Store the results
+        self.results['Method'].append('All Features')
+        self.results['Model'].append('Random Forest')
+        self.results['MAE'].append(mae_rf)
+        self.results['MSE'].append(mse_rf)
+        self.results['R2'].append(r2_rf)
+
+        print(f"Random Forest with all features evaluated. MAE: {mae_rf:.4f}, MSE: {mse_rf:.4f}, R2: {r2_rf:.4f}")
+
+        # # Optionally, plot actual vs. predicted values
+        # y_pred_rf = rf_model.predict(self.X_test)
+        # self._plot_predictions(self.y_test, y_pred_rf, 'Random Forest with All Features')
+
+        return rf_model
+    
+
+    def tune_random_forest(self):
+        """
+        Performs hyperparameter tuning for the Random Forest model using GridSearchCV.
+        """
+        # Define the parameter grid without 'auto' for max_features
+        param_grid = {
+            'n_estimators': [100, 200, 300],
+            'max_features': ['sqrt', 'log2', 0.2, 0.5],  # Removed 'auto'
+            'max_depth': [None, 10, 20, 30],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 4]
+        }
+
+        # Initialize the Random Forest model
+        rf = RandomForestRegressor(random_state=self.random_state)
+
+        # Initialize GridSearchCV
+        grid_search = GridSearchCV(
+            estimator=rf,
+            param_grid=param_grid,
+            cv=5,
+            n_jobs=-1,
+            scoring='neg_mean_absolute_error',
+            verbose=2
+        )
+
+        # Fit GridSearchCV
+        grid_search.fit(self.X_train, self.y_train)
+
+        # Retrieve the best parameters and set the model
+        self.rf_model = grid_search.best_estimator_
+        print(f"Best parameters found: {grid_search.best_params_}")
+        print(f"Best MAE score: {-grid_search.best_score_:.4f}")
+
+        # Evaluate the tuned model
+        self.evaluate_model(self, model=self.rf_model, model_name='RandomForest')
 
 
-        self.qb_model = LinearRegression()
+    def build_and_train_lstm(self, units=64, dropout_rate=0.3, epochs=100, batch_size=32, patience=10):
+        """
+        Builds, compiles, and trains the LSTM model using the training data.
 
-        self.qb_model.fit(self.qb_x_train,self.qb_y_train)
+        Parameters:
+        - units: int, number of units in the LSTM layers.
+        - dropout_rate: float, dropout rate for regularization.
+        - epochs: int, number of epochs to train the model.
+        - batch_size: int, number of samples per gradient update.
+        - patience: int, number of epochs with no improvement after which training will be stopped.
+        """
+
+        # Reshape data for LSTM input (samples, time steps, features)
+        self.x_train_lstm = self.x_train.reshape((self.x_train.shape[0], 1, self.x_train.shape[1]))
+        self.x_test_lstm = self.x_test.reshape((self.x_test.shape[0], 1, self.x_test.shape[1]))
+
+        # Build and compile the model
+        self.lstm_model = Sequential([
+            LSTM(units, input_shape=(self.x_train_lstm.shape[1], self.x_train_lstm.shape[2]), activation='relu', return_sequences=True),
+            Dropout(dropout_rate),
+            LSTM(units // 2, activation='relu'),
+            Dropout(dropout_rate),
+            Dense(1)
+        ])
+        self.lstm_model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mean_absolute_error'])
+        print("LSTM model built and compiled.")
+
+        # Train the model
+        early_stopping = EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)
+        self.lstm_model.fit(
+            self.x_train_lstm, self.y_train,
+            validation_split=0.2,
+            epochs=epochs,
+            batch_size=batch_size,
+            callbacks=[early_stopping],
+            verbose=0  # Set verbose to 1 for detailed training logs
+        )
+        print("LSTM training completed.")
 
 
-    def train_rb_wr_model(self):
-
-        df = self.rusher_receiver_features_df[self.rb_wr_features + ['fantasy_points']].copy()
-        df = self.get_dummy_variables(df)
-
-        self.rb_wr_x_train,self.rb_wr_x_test,self.rb_wr_y_train,self.rb_wr_y_test = self.preprocess_data(df, 'fantasy_points')
-
-
-        self.rb_wr_model = LinearRegression()
-
-        self.rb_wr_model.fit(self.rb_wr_x_train,self.rb_wr_y_train)
+    def evaluate_lstm(self):
+        """
+        Evaluates the trained LSTM model on the test data.
+        """
+        if self.lstm_model is None:
+            raise ValueError("LSTM model has not been trained yet.")
+        lstm_test_loss, lstm_test_mae = self.lstm_model.evaluate(self.x_test_lstm, self.y_test, verbose=0)
+        self.results['LSTM'] = {'MAE': lstm_test_mae, 'Loss': lstm_test_loss}
+        print(f"LSTM Test MAE: {lstm_test_mae:.2f}")
 
 
-    def train_kicker_defense_model(self):
+    def evaluate_ensemble(self):
+        """
+        Evaluates an ensemble model that averages predictions from both
+        the trained LSTM and Random Forest models.
+        """
+        if self.rf_model is None or self.lstm_model is None:
+            raise ValueError("Both Random Forest and LSTM models must be trained before evaluating the ensemble.")
+        rf_predictions = self.rf_model.predict(self.x_test)
+        lstm_predictions = self.lstm_model.predict(self.x_test_lstm).flatten()
+        ensemble_predictions = (lstm_predictions + rf_predictions) / 2
+        ensemble_mae = mean_absolute_error(self.y_test, ensemble_predictions)
+        ensemble_mse = mean_squared_error(self.y_test, ensemble_predictions)
+        ensemble_r2 = r2_score(self.y_test, ensemble_predictions)
+        self.results['Ensemble'] = {'MAE': ensemble_mae, 'MSE': ensemble_mse, 'R2': ensemble_r2}
+        print(f"Ensemble Test MAE: {ensemble_mae:.2f}")
 
-        df = self.kicker_defense_features_df[self.kicker_defense_features + ['fantasy_points']].copy()
 
-        df = self.get_dummy_variables(df)
+    def get_results(self):
+        """
+        Returns the evaluation results as a pandas DataFrame.
+        """
+        return pd.DataFrame(self.results)
+    
 
-        self.kicker_defense_x_train,self.kicker_defense_x_test,self.kicker_defense_y_train,self.kicker_defense_y_test = self.preprocess_data(df, 'fantasy_points')
+    def save_model(self, model, filename):
+        """
+        Saves the trained model to the 'nfl_models' folder. Creates the folder if it doesn't exist.
+
+        Parameters:
+        - model: The trained model object.
+        - filename: str, the file name to save the model.
+        """
+        # Ensure the folder 'nfl_models' exists
+        folder = 'nfl_models'
+        os.makedirs(folder, exist_ok=True)
+
+        # Construct the full file path
+        filepath = os.path.join(folder, filename)
+
+        # Save the model
+        joblib.dump(model, filepath)
+        print(f"Model saved to {filepath}")
 
 
-        self.kicker_defense_model = LinearRegression()
+    def load_model(self, filename):
+        """
+        Loads a trained model from the 'nfl_models' folder. Ensures the file exists.
 
-        self.kicker_defense_model.fit(self.kicker_defense_x_train,self.kicker_defense_y_train)
+        Parameters:
+        - filename: str, the file name of the saved model.
+
+        Returns:
+        - model: The loaded model object.
+
+        Raises:
+        - FileNotFoundError: If the model file does not exist.
+        """
+        # Construct the full file path
+        folder = 'nfl_models'
+        filepath = os.path.join(folder, filename)
+
+        # Check if the file exists
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Model file {filepath} does not exist.")
+
+        # Load the model
+        model = joblib.load(filepath)
+        print(f"Model loaded from {filepath}")
+        return model
 
 
 
-
-
-            
+                    
 
 
