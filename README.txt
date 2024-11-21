@@ -50,11 +50,14 @@ Execution:
             - conda activate team-134-project
 	2.	Verify that all required packages are installed using the utility script:
 
-This will insure that you have the necessary packages needed to run the code using package versions this project was developed in.
+This will ensure that you have the necessary packages needed to run the code using package versions this project was developed in.
 
 2. Preparing the data for the backend:
+
 This step requires running the file "generate_backend_data.py" in the terminal. Run the following command in the terminal:
+
     - python .\generate_nfl_prediction_data.py
+    
 The output of running this command should provide you a final csv that will be saved to your working directory. This csv is what will be used 
 for the backend of the interactive visualization. NOTE: This will take time due to generating features and training multiple models.
 If you are less concerned about the accuracy of the model, go into the "generate_backend_data.py" file and change the start date to a more recent
