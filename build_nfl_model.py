@@ -829,9 +829,9 @@ class NFLModel:
             'xp_attempt_33y': 'sum',
             'xp_made_33y': 'sum',
         })
-
+        df_kicker_game_level.rename(columns = {'defteam':'opponent_team'} , inplace = True )
         df_kicker_game_level["home"] = df_kicker_game_level["home_team"] == df_kicker_game_level["posteam"]
-        df_kicker_game_level.drop(columns=['home_team', 'away_team'], inplace=True)
+        # df_kicker_game_level.drop(columns=['home_team', 'away_team'], inplace=True)
         # Define the fields for which you want to calculate aggregate statistics
         kicker_fields = [
             'fantasy_points', 
@@ -859,7 +859,7 @@ class NFLModel:
         ).reset_index(drop=True).round(2)
         df_kicker_game_level_agg = df_kicker_game_level_agg.drop(columns=df_kicker_game_level_agg.loc[:, "fantasy_points":"home"].columns)
 
-        df_kicker_game_level_agg_by_game = df_kicker_game_level.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam'], as_index=False).agg({
+        df_kicker_game_level_agg_by_game = df_kicker_game_level.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'opponent_team','home_team','away_team'], as_index=False).agg({
             # Play level
             'fantasy_points': 'sum',
             'total_fg_made': 'sum',
@@ -878,7 +878,7 @@ class NFLModel:
 
         # Group by 'defteam' and apply the 'calc_agg_stats' function
         df_kicker_game_level_agg_by_def = df_kicker_game_level_agg_by_game.groupby(
-            ['defteam'], 
+            ['opponent_team'], 
             group_keys=False
         ).apply(
             self.calc_agg_stats_kicker_d, 
@@ -891,7 +891,7 @@ class NFLModel:
         df_combined = pd.merge(
             df_kicker_game_level_agg,
             df_kicker_game_level_agg_by_def,
-            on=['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam'],
+            on=['game_id', 'game_date', 'week', 'season', 'posteam', 'opponent_team'],
             how='left',
             suffixes=('_k', '_def')
         )
@@ -913,8 +913,8 @@ class NFLModel:
         )
 
         # Drop redundant columns if necessary
-        columns_to_drop = ['home_team']
-        df_combined.drop(columns=columns_to_drop, inplace=True, errors='ignore')
+        # columns_to_drop = ['home_team']
+        # df_combined.drop(columns=columns_to_drop, inplace=True, errors='ignore')
 
         # Reset index
         df_combined.reset_index(drop=True, inplace=True)

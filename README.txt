@@ -7,31 +7,57 @@ README.txt - a concise, short README.txt file, corresponding to the "user guide"
 
 
 Desription:
- This module is necessary for generating the model object that is used in the backend for the interactive visualization tool that tracks 
- NFL Players fantasy performance. The methods present in this module are listed below with a brief outline of what each of them accopmlishes:
+This repository contains the necessary files needed to run the interactive nfl fantasy player prediction tool. Below will include the following relevant files:
+- nfl_data_loader.py 
+    - Helper module that helps prepare and pull the raw data used to generate the predictions
+- build_nfl_model.py
+    - Module that is used to perform all the modeling from start to finish.
+    - Includes feature engineering, model training, and generating predictions
+- INCLUDE FILE NAME FOR WHATEVER IS USED FOR THE VIZ  
+- requirements.txt 
+    - Text file that lists out the required packages needed to use the tool properly
+- verify_requirements.py 
+    - Module that checks if the necessary required packages are installed in the current users working directory
+- generate_nfl_prediction_data.py
+    - Python script used to aggregate the csv used for the backend of the interactive tool.
 
- load_data(): This method is used to load in the necessary data used to generate features for each player. This data spans from 1999 to 2024 and is uploaded weekly
- as games are played.
-
- generate_features(): This method is used to generate features for a given position group. This takes in the outputs from the load_data() method and aggregates features. 
- The feature level data is returned from this method.
-
- train_model(): This method takes in the feature level data and provides the necessary preprocessing steps required for this data before undergoing model fitting.
- These steps include the handling of categorical variables,isolating the variables of interest (features that will be used for the model), and splitting the data into the necessary test/train splits.
- After these preprocessing steps after completed, the model will be fit. The model object and preprocessed data will be returned.
-
+The steps that are outlined below are imperative to using the tool properly.
 
 
 Installation: 
+Prerequisites
+ 
+	•	Python 3.8+
+	•	Ensure you have pip or conda installed.
+ 
+Clone the Repository
+
+git clone https://github.com/yourusername/Team-134-CSE-6242-Project.git
+cd Team-134-CSE-6242-Project
+
+
 
 
 Execution:
 
-To execute the code successfully and return the model object, all the user must do is run the following method.
+1. Setup:
 
-- run_entire_model_process()
+- Install Dependencies
+ 
+	1.	Install the required Python packages:pip install -r requirements.txt
+        - Alternatively, you can recreate the environment using conda:
+            - conda env create -f environment.yml
+            - conda activate team-134-project
+	2.	Verify that all required packages are installed using the utility script:
 
-The only parameter necessary for this method is the position group of interest. For ease of use purposes, the default value is set 
-to 'rb_wr'. This method will return the same outputs as the train_model() parameter but will also run all the prior methods before it. 
-This method is just a shortcut to returning the model object without having the run all the required steps beforehand as this method 
-will handle it all for the user.
+This will insure that you have the necessary packages needed to run the code using package versions this project was developed in.
+
+2. Preparing the data for the backend:
+This step requires running the file "generate_backend_data.py" in the terminal. Run the following command in the terminal:
+    - python .\generate_nfl_prediction_data.py
+The output of running this command should provide you a final csv that will be saved to your working directory. This csv is what will be used 
+for the backend of the interactive visualization. NOTE: This will take time due to generating features and training multiple models.
+If you are less concerned about the accuracy of the model, go into the "generate_backend_data.py" file and change the start date to a more recent
+date ie. (2015). This should reduce run time but decrease the amount of data allowed for the model training. 
+
+3.(Kenny Fill in for using the visualization module and how to launch it)
