@@ -91,7 +91,7 @@ qb_features = ['div_game',
  'points_allowed_mean_last5']
 
 
-kicker_defense_features = ['n_games_career',
+kicker_features = ['n_games_career',
  'fantasy_points_mean_career',
  'fantasy_points_mean_season_k',
  'fantasy_points_mean_last5_k',
@@ -157,9 +157,9 @@ class NFLModel:
                 'features_df': 'qb_features_df'
             },
             'KICKER': {
-                'features': kicker_defense_features,
-                'generate_features_method': self.generate_features_kicker_defense,
-                'features_df': 'kicker_defense_features_df'
+                'features': kicker_features,
+                'generate_features_method': self.generate_features_kicker,
+                'features_df': 'kicker_features_df'
             },
             'RW': {
                 'features': rb_wr_features,
@@ -347,7 +347,7 @@ class NFLModel:
         return df
 
 
-    def calc_agg_stats_kicker_d(self,group, fields, career=True):
+    def calc_agg_stats_kicker(self,group, fields, career=True):
         """
         Calculate aggregate statistics for each player over their career and season,
         including prior season means, rolling averages, and cumulative counts.
@@ -726,7 +726,7 @@ class NFLModel:
         self.qb_features_df = passing_stats.copy()
 
 
-    def generate_features_kicker_defense(self):
+    def generate_features_kicker(self):
         # Filter rows where 'kicker_player_name' is not null and the play type is relevant
         df_kicker_pbp = self.pbp_df.loc[
             self.pbp_df['kicker_player_name'].notnull() & 
@@ -854,7 +854,7 @@ class NFLModel:
             ['kicker_player_name', 'kicker_player_id'], 
             group_keys=False
         ).apply(
-            self.calc_agg_stats_kicker_d, 
+            self.calc_agg_stats_kicker, 
             fields=kicker_fields
         ).reset_index(drop=True).round(2)
         df_kicker_game_level_agg = df_kicker_game_level_agg.drop(columns=df_kicker_game_level_agg.loc[:, "fantasy_points":"home"].columns)
@@ -881,7 +881,7 @@ class NFLModel:
             ['opponent_team'], 
             group_keys=False
         ).apply(
-            self.calc_agg_stats_kicker_d, 
+            self.calc_agg_stats_kicker, 
             fields=kicker_fields, 
             career=False 
         ).reset_index(drop=True).round(2)
@@ -923,7 +923,7 @@ class NFLModel:
         print("DataFrames merged successfully into 'df_combined'.")
 
 
-        self.kicker_defense_features_df = df_combined.fillna(0)
+        self.kicker_features_df = df_combined.fillna(0)
 
 
     def get_dummy_variables(self,df, drop_first=True, dummy_na=False):
