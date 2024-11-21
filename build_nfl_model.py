@@ -124,8 +124,9 @@ kicker_defense_features = ['n_games_career',
  'xp_made_33y_mean_season_def',
  'wind']
 
+
 class NFLModel:
-    def __init__(self, position='QB', test_size=0.2, random_state=42):
+    def __init__(self, position='QB', test_size=0.2, random_state=42, roster_data=None, pbp_df=None, schedules_df=None):
         """
         Initializes the NFLModel class.
 
@@ -133,13 +134,20 @@ class NFLModel:
         - position: str, the position group for the model ('QB', 'Kicker', 'RW').
         - test_size: float, proportion of the dataset to include in the test split.
         - random_state: int, random seed for reproducibility.
+        - roster_data: DataFrame, preloaded roster data.
+        - pbp_df: DataFrame, preloaded play-by-play data.
+        - schedules_df: DataFrame, preloaded schedules data.
         """
         self.position = position.upper()
         self.test_size = test_size
         self.random_state = random_state
 
-        # Load the data
-        self.roster_data, self.pbp_df, self.schedules_df = self.load_data()
+        # Assign preloaded data or raise an error if not provided
+        if roster_data is None or pbp_df is None or schedules_df is None:
+            raise ValueError("Please provide preloaded data for roster_data, pbp_df, and schedules_df.")
+        self.roster_data = roster_data
+        self.pbp_df = pbp_df
+        self.schedules_df = schedules_df
 
         # Map positions to features and dataframes dynamically
         self.position_features_map = {
@@ -170,6 +178,8 @@ class NFLModel:
 
         # Initialize placeholders for position-specific data
         self.features_df = self.generate_features()
+        self.x = None
+        self.y = None
         self.x_train = None
         self.x_test = None
         self.y_train = None
@@ -180,26 +190,6 @@ class NFLModel:
         self.scaler = None
         self.results = {}
 
-
-    def load_data(self):
-        """
-        Loads the required NFL data.
-
-        Returns:
-        - roster_data: DataFrame with player roster information.
-        - pbp_df: DataFrame with play-by-play data.
-        - schedules_df: DataFrame with game schedules.
-        """
-        roster_data = nfl.import_seasonal_rosters(
-            list(range(1999, 2025))
-        )
-        pbp_df = pd.DataFrame(
-            nfl.import_pbp_data(list(range(1999, 2025)))
-        )
-        schedules_df = pd.DataFrame(
-            nfl.import_schedules(list(range(1999, 2025)))
-        )
-        return roster_data, pbp_df, schedules_df
 
     def generate_features(self):
         """
@@ -226,12 +216,12 @@ class NFLModel:
         df = self.features_df[self.features + [target_variable]].copy()
         df = self.get_dummy_variables(df)
 
-        x = df.drop(columns=[target_variable])
-        y = df[target_variable]
+        self.x = df.drop(columns=[target_variable])
+        self.y = df[target_variable]
 
         # Split data into training and testing sets
         x_train_raw, x_test_raw, y_train, y_test = train_test_split(
-            x, y, test_size=self.test_size, random_state=self.random_state
+            self.x, self.y, test_size=self.test_size, random_state=self.random_state
         )
 
         # Align the training and testing data
@@ -819,7 +809,7 @@ class NFLModel:
             'wind': 'first',
         }).sort_values(by=['game_date'], ascending=False)
 
-        df_kicker_game_level = df_kicker_pbp.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam', 'kicker_player_name', 'kicker_player_id']).agg({
+        df_kicker_game_level = df_kicker_pbp.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam', 'kicker_player_name', 'kicker_player_id'], as_index=False).agg({
             # Game level
             'home_team': 'first',
             'away_team': 'first',
@@ -869,7 +859,7 @@ class NFLModel:
         ).reset_index(drop=True).round(2)
         df_kicker_game_level_agg = df_kicker_game_level_agg.drop(columns=df_kicker_game_level_agg.loc[:, "fantasy_points":"home"].columns)
 
-        df_kicker_game_level_agg_by_game = df_kicker_game_level.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam']).agg({
+        df_kicker_game_level_agg_by_game = df_kicker_game_level.groupby(['game_id', 'game_date', 'week', 'season', 'posteam', 'defteam'], as_index=False).agg({
             # Play level
             'fantasy_points': 'sum',
             'total_fg_made': 'sum',
@@ -1009,7 +999,7 @@ class NFLModel:
         # Define the parameter grid without 'auto' for max_features
         param_grid = {
             'n_estimators': [100, 200, 300],
-            'max_features': ['sqrt', 'log2', 0.2, 0.5],  # Removed 'auto'
+            'max_features': ['sqrt', 'log2', 0.2, 0.5],
             'max_depth': [None, 10, 20, 30],
             'min_samples_split': [2, 5, 10],
             'min_samples_leaf': [1, 2, 4]
@@ -1025,11 +1015,11 @@ class NFLModel:
             cv=5,
             n_jobs=-1,
             scoring='neg_mean_absolute_error',
-            verbose=2
+            verbose=0
         )
 
         # Fit GridSearchCV
-        grid_search.fit(self.X_train, self.y_train)
+        grid_search.fit(self.x_train, self.y_train)
 
         # Retrieve the best parameters and set the model
         self.rf_model = grid_search.best_estimator_
@@ -1037,7 +1027,7 @@ class NFLModel:
         print(f"Best MAE score: {-grid_search.best_score_:.4f}")
 
         # Evaluate the tuned model
-        self.evaluate_model(self, model=self.rf_model, model_name='RandomForest')
+        self.evaluate_model(self, model=self.rf_model, model_name='RandomForest_Tuned')
 
 
     def build_and_train_lstm(self, units=64, dropout_rate=0.3, epochs=100, batch_size=32, patience=10):
@@ -1160,9 +1150,59 @@ class NFLModel:
         model = joblib.load(filepath)
         print(f"Model loaded from {filepath}")
         return model
+    
+    def process_predictions(self, ensemble=False, save_to_file=None):
+        """
+        Generates predictions using trained models and optionally saves them to a CSV file.
+        Supports ensemble predictions by combining Random Forest and LSTM outputs.
+
+        Parameters:
+        - ensemble: bool, whether to use an ensemble of Random Forest and LSTM models.
+        - save_to_file: str or None, path to save the predictions as a CSV file. If None, does not save to file.
+
+        Returns:
+        - predictions_df: DataFrame with predictions for the entire dataset.
+        """
+        print("Generating predictions...")
+
+        # Check if models are trained
+        if not hasattr(self, 'rf_model') or not hasattr(self, 'lstm_model'):
+            raise ValueError("Models are not trained. Please train the models before generating predictions.")
+
+        # Scale the data for predictions
+        x_scaled = self.scaler.transform(self.x)
+
+        # Prepare the DataFrame for predictions
+        predictions_df = self.features_df.copy()
+
+        # Generate predictions
+        if ensemble:
+            print("Generating ensemble predictions...")
+
+            # Reshape for LSTM
+            x_lstm = x_scaled.reshape((x_scaled.shape[0], 1, x_scaled.shape[1]))
+
+            # Random Forest predictions
+            rf_preds = self.rf_model.predict(x_scaled)
+
+            # LSTM predictions
+            lstm_preds = self.lstm_model.predict(x_lstm).flatten()
+
+            # Combine predictions (average)
+            predictions_df['predicted_fantasy'] = (rf_preds + lstm_preds) / 2
+        else:
+            print("Using Random Forest predictions...")
+            predictions_df['predicted_fantasy'] = self.rf_model.predict(x_scaled)
+
+        # Save predictions to a CSV file if requested
+        if save_to_file:
+            print(f"Saving predictions to file: {save_to_file}...")
+            predictions_df.to_csv(save_to_file, index=False)
+            print(f"Predictions successfully saved to {save_to_file}.")
+
+        return predictions_df
 
 
-
-                    
+                        
 
 
