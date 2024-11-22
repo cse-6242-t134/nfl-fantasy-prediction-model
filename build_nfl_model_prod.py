@@ -1099,12 +1099,23 @@ class NFLModel:
     def evaluate_lstm(self):
         """
         Evaluates the trained LSTM model on the test data.
+        Adds MAE, MSE, and R² metrics to the results dictionary.
         """
         if self.lstm_model is None:
             raise ValueError("LSTM model has not been trained yet.")
+        
+        # Evaluate LSTM model
         lstm_test_loss, lstm_test_mae = self.lstm_model.evaluate(self.x_test_lstm, self.y_test, verbose=0)
-        self.results['LSTM'] = {'MAE': lstm_test_mae, 'Loss': lstm_test_loss}
-        print(f"LSTM Test MAE: {lstm_test_mae:.2f}")
+        lstm_predictions = self.lstm_model.predict(self.x_test_lstm).flatten()
+
+        # Calculate additional metrics
+        lstm_test_mse = mean_squared_error(self.y_test, lstm_predictions)
+        lstm_test_r2 = r2_score(self.y_test, lstm_predictions)
+
+        # Store metrics in results
+        self.results['LSTM'] = {'MAE': lstm_test_mae, 'MSE': lstm_test_mse, 'R2': lstm_test_r2, 'Loss': lstm_test_loss}
+        print(f"LSTM Test MAE: {lstm_test_mae:.2f}, MSE: {lstm_test_mse:.2f}, R²: {lstm_test_r2:.2f}")
+    
 
 
     def evaluate_ensemble(self):
