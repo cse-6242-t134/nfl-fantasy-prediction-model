@@ -18,5 +18,6 @@ def load_data(start_year=1999, end_year=2024):
     roster_data = nfl.import_seasonal_rosters(list(range(start_year, end_year + 1)))
     pbp_df = pd.DataFrame(nfl.import_pbp_data(list(range(start_year, end_year + 1))))
     schedules_df = pd.DataFrame(nfl.import_schedules(list(range(start_year, end_year + 1))))
+    weekly_df = pd.DataFrame(nfl.import_weekly_data(list(range(start_year, end_year + 1))))
 
-    return roster_data, pbp_df, schedules_df
+    return roster_data, pbp_df, schedules_df, weekly_df
