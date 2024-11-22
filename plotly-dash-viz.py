@@ -4,8 +4,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Load the data
-df = pd.read_csv('rb_wr_predictions.csv')
+# df = pd.read_csv('rb_wr_predicted_fantasy.csv')
 # df = df[df["season"] == 2024]
+
+df = pd.read_csv('fantasy_prediction_data.csv')
+
+df["player_id"] = df["player_id"].fillna(df["kicker_player_id"])
+df["player_name"] = df["player_name"].fillna(df["kicker_player_name"])
 
 # Initialize the app
 app = Dash(__name__)
@@ -21,7 +26,7 @@ app.layout = html.Div([
     html.P('Week'),
     dcc.Dropdown(options=df['week'].unique(), value='10', id='week-dropdown'),
     html.P('Order by'),
-    dcc.Dropdown(options=['fantasy_points', 'predictions'], value='predictions', id='order-by-dropdown'),
+    dcc.Dropdown(options=['fantasy_points', 'predicted_fantasy'], value='predicted_fantasy', id='order-by-dropdown'),
     # dcc.Graph(figure={}, id='bar'),
     dcc.Graph(figure={}, id='scatter')
     
@@ -37,12 +42,12 @@ app.layout = html.Div([
 # )
 # def update_graphs(season_chosen, week_chosen):
 #     df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
-#               .sort_values(by='predictions', ascending=False)
+#               .sort_values(by='predicted_fantasy', ascending=False)
 #               .head(32))
-#     df_viz["error_plus"] = df_viz["predictions"] * .7
-#     df_viz["error_minus"] = df_viz["predictions"] * .7
+#     df_viz["error_plus"] = df_viz["predicted_fantasy"] * .7
+#     df_viz["error_minus"] = df_viz["predicted_fantasy"] * .7
 #     # fig1 = px.bar(df_viz, x='player_name', y='fantasy_points')
-#     fig2 = px.scatter(df_viz, x='player_name', y=['fantasy_points', 'predictions'],
+#     fig2 = px.scatter(df_viz, x='player_name', y=['fantasy_points', 'predicted_fantasy'],
 #                       error_y='error_plus', error_y_minus='error_minus')
 #     # return fig1, fig2
 #     return fig2
@@ -61,15 +66,15 @@ def update_graphs(season_chosen, week_chosen, order_by_chosen):
     # Create two separate traces
     fig = go.Figure()
     
-    # Add predictions with error bars
+    # Add predicted_fantasy with error bars
     fig.add_trace(go.Scatter(
         x=df_viz['player_name'],
-        y=df_viz['predictions'],
-        name='Predictions',
+        y=df_viz['predicted_fantasy'],
+        name='predicted_fantasy',
         mode='markers',
         # error_y=dict(
         #     type='data',
-        #     array=df_viz['predictions'] * 0.7,  # 70% error margin
+        #     array=df_viz['predicted_fantasy'] * 0.3,  # 70% error margin
         #     visible=True
         # )
     ))
