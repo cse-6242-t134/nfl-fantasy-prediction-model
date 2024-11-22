@@ -143,6 +143,8 @@ def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_ch
         showlegend=True,
         xaxis={'tickangle': 45}
     )
+
+    fig.update_yaxes(rangemode="tozero")
     
     return fig
 
@@ -204,7 +206,8 @@ def update_season_graph(season_chosen, week_chosen, select_players_chosen, pred_
         yaxis_title="Fantasy Points",
         legend_title="Point Type",
         showlegend=True,
-        xaxis={'tickangle': 45}
+        xaxis={'tickangle': 45},
+        yaxis={'range': [0, None]}
     )
     
     return fig
