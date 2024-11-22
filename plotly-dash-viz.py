@@ -53,8 +53,8 @@ def render_content(tab):
                     dcc.Dropdown(options=["All", "QB", "RB/WR/TE", "K"], value='All', id='position-dropdown', style={'width': '100px'}),
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
-                    html.P('Order by'),
-                    dcc.Dropdown(options=['fantasy_points_ppr', 'predicted_fantasy'], value='predicted_fantasy', id='order-by-dropdown', style={'width': '200px'})
+                    html.P('Data'),
+                    dcc.Dropdown(options=['Actual', 'Predicted'], value='Predicted', multi=False, id='order-by-dropdown', style={'width': '200px'})
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
             ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '20px'}),
             dcc.Graph(figure={}, id='scatter')
@@ -95,28 +95,39 @@ def render_content(tab):
      Input(component_id='order-by-dropdown', component_property='value')]
 )
 def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_chosen):
-    df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
-              .sort_values(by=order_by_chosen, ascending=False)
-              .head(32))
+    # df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
+    #           .sort_values(by=order_by_chosen, ascending=False)
+    #           .head(32))
     
     # Create two separate traces
     fig = go.Figure()
     
-    # Add predicted_fantasy with error bars
-    fig.add_trace(go.Scatter(
+    if order_by_chosen == 'Predicted':
+
+        df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
+              .sort_values(by="predicted_fantasy", ascending=False)
+              .head(32))
+        
+        # Add predicted_fantasy with error bars
+        fig.add_trace(go.Scatter(
         x=df_viz['player_name'],
         y=df_viz['predicted_fantasy'],
         name='predicted_fantasy',
         mode='markers',
-        # error_y=dict(
-        #     type='data',
-        #     array=df_viz['predicted_fantasy'] * 0.3,  # 70% error margin
-        #     visible=True
-        # )
+        error_y=dict(
+            type='data',
+            array=df_viz['predicted_fantasy'] * 0.2,  # 20% error margin
+            visible=True
+        )
     ))
 
-    # Add actual fantasy points (no error bars)
-    fig.add_trace(go.Scatter(
+    if order_by_chosen == 'Actual':
+        df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
+              .sort_values(by="fantasy_points_ppr", ascending=False)
+              .head(32))
+        
+        # Add actual fantasy points (no error bars)
+        fig.add_trace(go.Scatter(
         x=df_viz['player_name'],
         y=df_viz['fantasy_points_ppr'],
         name='Actual Points',
