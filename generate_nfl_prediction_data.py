@@ -22,7 +22,7 @@ kicker_obj.train_evaluate_model(model_type='LinearRegression')
 kicker_obj.train_evaluate_model(model_type='RandomForest')
 kicker_obj.build_and_train_lstm()
 
-predictions_kicker = kicker_obj.process_predictions(ensemble=True)
+predictions_kicker = kicker_obj.process_predictions(long_term = True)
 
 
 predictions_kicker.drop(columns = ['home_team'], inplace = True)

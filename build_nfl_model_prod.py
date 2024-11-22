@@ -1188,7 +1188,7 @@ class NFLModel:
         print(f"Model loaded from {filepath}")
         return model
     
-    def process_predictions(self, ensemble=False, save_to_file=None):
+    def process_predictions(self, ensemble=False, save_to_file=None, rf = False, long_term = False):
         """
         Generates predictions using trained models and optionally saves them to a CSV file.
         Supports ensemble predictions by combining Random Forest and LSTM outputs.
@@ -1227,9 +1227,16 @@ class NFLModel:
 
             # Combine predictions (average)
             predictions_df['predicted_fantasy'] = (rf_preds + lstm_preds) / 2
-        else:
+        elif rf:
             print("Using Random Forest predictions...")
             predictions_df['predicted_fantasy'] = self.rf_model.predict(x_scaled)
+        elif long_term:
+            
+            # Reshape for LSTM
+            x_lstm = x_scaled.reshape((x_scaled.shape[0], 1, x_scaled.shape[1]))
+            print("Using Random Forest predictions...")
+            predictions_df['predicted_fantasy'] = self.lstm_model.predict(x_lstm).flatten()
+
 
         # Save predictions to a CSV file if requested
         if save_to_file:
