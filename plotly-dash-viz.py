@@ -1,5 +1,5 @@
 from dash import Dash, html, dash_table, dcc, callback, Output, Input
-import pandas as pd
+import pandas as pd, numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -34,6 +34,7 @@ app.layout = html.Div([
     Output('view-content', 'children'),
     Input('select-view', 'value')
 )
+
 def render_content(tab):
     if tab == 'week-view':
         return (
@@ -52,6 +53,10 @@ def render_content(tab):
                     dcc.Dropdown(options=["All", "QB", "RB/WR/TE", "K"], value='All', id='position-dropdown', style={'width': '100px'}),
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
+                    html.P('Select players'),
+                    dcc.Dropdown(options=np.sort(df["player_name"].unique()) , value='players', id='select-players-dropdown', multi=True, style={'width': '200px'})
+                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+                html.Div([
                     html.P('Order by'),
                     dcc.Dropdown(options=['fantasy_points', 'predicted_fantasy'], value='predicted_fantasy', id='order-by-dropdown', style={'width': '200px'})
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
@@ -63,9 +68,11 @@ def render_content(tab):
     Output(component_id='scatter', component_property='figure'),
     [Input(component_id='season-dropdown', component_property='value'),
      Input(component_id='week-dropdown', component_property='value'),
+     Input(component_id='position-dropdown', component_property='value'),
+     Input(component_id='select-players-dropdown', component_property='value'),
      Input(component_id='order-by-dropdown', component_property='value')]
 )
-def update_graphs(season_chosen, week_chosen, order_by_chosen):
+def update_graphs(season_chosen, week_chosen, position_chosen, select_players_chosen, order_by_chosen):
     df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
               .sort_values(by=order_by_chosen, ascending=False)
               .head(32))
