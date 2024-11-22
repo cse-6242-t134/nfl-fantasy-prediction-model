@@ -168,8 +168,10 @@ def update_season_graph(season_chosen, week_chosen, select_players_chosen, pred_
     for player in select_players_chosen:
         df_player = df_viz[df_viz['player_name'] == player]
         fig.add_trace(go.Scatter(
-            x=np.concatenate([df_player[df_player['week'] == int(week_chosen)-1]['week'], df_player[df_player['week'] >= int(week_chosen)]['week']]),
-            y=np.concatenate([df_player[df_player['week'] == int(week_chosen)-1]['fantasy_points_ppr'], df_player[df_player['week'] >= int(week_chosen)]['predicted_fantasy']]),
+            x=np.concatenate([df_player[df_player['week'] < int(week_chosen)]['week'],
+                              df_player[df_player['week'] >= int(week_chosen)]['week']]),
+            y=np.concatenate([df_player[df_player['week'] < int(week_chosen)]['fantasy_points_ppr'],
+                              df_player[df_player['week'] >= int(week_chosen)]['predicted_fantasy']]),
             name=f"{player} predicted",
             mode='lines+markers',
             line=dict(dash='dash'),
