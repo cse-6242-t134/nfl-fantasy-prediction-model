@@ -21,8 +21,8 @@ app.layout = html.Div([
     html.H1('Fantasy Prediction Viz'),
     # dash_table.DataTable(data=df.to_dict('records'), page_size=10),
     dcc.Tabs(id="select-view", value='week-view', children=[
-        dcc.Tab(label='Weekly View', value='week-view'),
-        dcc.Tab(label='Season View', value='season-view'),
+        dcc.Tab(label='Top Players', value='week-view'),
+        dcc.Tab(label='Compare Players', value='season-view'),
     ]),
     html.Div(id='view-content'),
     
@@ -38,7 +38,7 @@ app.layout = html.Div([
 def render_content(tab):
     if tab == 'week-view':
         return (
-            html.H2('Best players per week'),
+            html.H2('Best players (per week)'),
             html.Div(id='weekly-selectors', children=[
                 html.Div([
                     html.P('Season'),
@@ -53,26 +53,44 @@ def render_content(tab):
                     dcc.Dropdown(options=["All", "QB", "RB/WR/TE", "K"], value='All', id='position-dropdown', style={'width': '100px'}),
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
-                    html.P('Select players'),
-                    dcc.Dropdown(options=np.sort(df["player_name"].unique()) , value='players', id='select-players-dropdown', multi=True, style={'width': '200px'})
-                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
-                html.Div([
                     html.P('Order by'),
                     dcc.Dropdown(options=['fantasy_points', 'predicted_fantasy'], value='predicted_fantasy', id='order-by-dropdown', style={'width': '200px'})
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
             ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '20px'}),
             dcc.Graph(figure={}, id='scatter')
         )
-
+    elif tab == 'season-view':
+        return (
+            html.H2('Compare Players'),
+            html.Div(id='weekly-selectors', children=[
+                html.Div([
+                    html.P('Season'),
+                    dcc.Dropdown(options=df['season'].unique(), value='2024', id='season-dropdown', style={'width': '100px'}),
+                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+                # html.Div([
+                #     html.P('Position'),
+                #     dcc.Dropdown(options=["All", "QB", "RB/WR/TE", "K"], value='All', id='position-dropdown', style={'width': '100px'}),
+                # ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+                html.Div([
+                    html.P('Select players'),
+                    dcc.Dropdown(options=np.sort(df["player_name"].unique()) , value='players', id='select-players-dropdown', multi=True, style={'width': '200px'})
+                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+                html.Div([
+                    html.P('Show Prediction Range'),
+                    dcc.Dropdown(options=['Yes', 'No'], value='Yes', id='pred-range-dropdown', style={'width': '100px'})
+                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+            ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '20px'}),
+            dcc.Graph(figure={}, id='season-line-graph')
+        )
+        
 @callback(
     Output(component_id='scatter', component_property='figure'),
     [Input(component_id='season-dropdown', component_property='value'),
      Input(component_id='week-dropdown', component_property='value'),
      Input(component_id='position-dropdown', component_property='value'),
-     Input(component_id='select-players-dropdown', component_property='value'),
      Input(component_id='order-by-dropdown', component_property='value')]
 )
-def update_graphs(season_chosen, week_chosen, position_chosen, select_players_chosen, order_by_chosen):
+def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_chosen):
     df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
               .sort_values(by=order_by_chosen, ascending=False)
               .head(32))
@@ -100,6 +118,61 @@ def update_graphs(season_chosen, week_chosen, position_chosen, select_players_ch
         name='Actual Points',
         mode='markers'
     ))
+    
+    # Update layout
+    fig.update_layout(
+        title='Actual vs Predicted Fantasy Points',
+        xaxis_title="Player Name",
+        yaxis_title="Fantasy Points",
+        legend_title="Point Type",
+        showlegend=True,
+        xaxis={'tickangle': 45}
+    )
+    
+    return fig
+
+@callback(
+    Output(component_id='season-line-graph', component_property='figure'),
+    [Input(component_id='season-dropdown', component_property='value'),
+     Input(component_id='select-players-dropdown', component_property='value'),
+     Input(component_id='pred-range-dropdown', component_property='value')]
+)
+def update_season_graph(season_chosen, select_players_chosen, pred_range_chosen):
+    df_viz = (df[(df['season'] == int(season_chosen)) & (df['player_name'].isin(select_players_chosen))]
+              .sort_values(by='week', ascending=True))
+    
+    # Create two separate traces
+    fig = go.Figure()
+    
+    # Add predicted_fantasy with error bars
+    # fig.add_trace(go.Scatter(
+    #     x=df_viz['player_name'],
+    #     y=df_viz['predicted_fantasy'],
+    #     name='predicted_fantasy',
+    #     mode='markers',
+    #     # error_y=dict(
+    #     #     type='data',
+    #     #     array=df_viz['predicted_fantasy'] * 0.3,  # 70% error margin
+    #     #     visible=True
+    #     # )
+    # ))
+
+    # Add actual fantasy points (no error bars)
+    for player in select_players_chosen:
+        df_player = df_viz[df_viz['player_name'] == player]
+        fig.add_trace(go.Scatter(
+            x=df_player['week'],
+            y=df_player['fantasy_points'],
+            name=f"{player} actual",
+            mode='lines+markers'
+        ))
+        fig.add_trace(go.Scatter(
+            x=df_player['week'],
+            y=df_player['predicted_fantasy'],
+            name=f"{player} predicted",
+            mode='lines+markers',
+            line=dict(dash='dash')
+        ))
     
     # Update layout
     fig.update_layout(
