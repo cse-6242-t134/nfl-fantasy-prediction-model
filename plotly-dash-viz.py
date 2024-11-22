@@ -13,44 +13,51 @@ df["player_id"] = df["player_id"].fillna(df["kicker_player_id"])
 df["player_name"] = df["player_name"].fillna(df["kicker_player_name"])
 
 # Initialize the app
-app = Dash(__name__)
+app = Dash(__name__, suppress_callback_exceptions=True)
 
 # Define the layout
 app.layout = html.Div([
     # Your components go here
     html.H1('Fantasy Prediction Viz'),
     # dash_table.DataTable(data=df.to_dict('records'), page_size=10),
-    html.H2('Best players per week'),
-    html.P('Season'),
-    dcc.Dropdown(options=df['season'].unique(), value='2024', id='season-dropdown'),
-    html.P('Week'),
-    dcc.Dropdown(options=df['week'].unique(), value='10', id='week-dropdown'),
-    html.P('Order by'),
-    dcc.Dropdown(options=['fantasy_points', 'predicted_fantasy'], value='predicted_fantasy', id='order-by-dropdown'),
-    # dcc.Graph(figure={}, id='bar'),
-    dcc.Graph(figure={}, id='scatter')
+    dcc.Tabs(id="select-view", value='week-view', children=[
+        dcc.Tab(label='Weekly View', value='week-view'),
+        dcc.Tab(label='Season View', value='season-view'),
+    ]),
+    html.Div(id='view-content'),
+    
     
     # Add more components...
 ])
 
-# @callback(
-#     # [Output(component_id='bar', component_property='figure'),
-#     #  Output(component_id='scatter', component_property='figure')],
-#     Output(component_id='scatter', component_property='figure'),
-#     [Input(component_id='season-dropdown', component_property='value'),
-#      Input(component_id='week-dropdown', component_property='value')]
-# )
-# def update_graphs(season_chosen, week_chosen):
-#     df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
-#               .sort_values(by='predicted_fantasy', ascending=False)
-#               .head(32))
-#     df_viz["error_plus"] = df_viz["predicted_fantasy"] * .7
-#     df_viz["error_minus"] = df_viz["predicted_fantasy"] * .7
-#     # fig1 = px.bar(df_viz, x='player_name', y='fantasy_points')
-#     fig2 = px.scatter(df_viz, x='player_name', y=['fantasy_points', 'predicted_fantasy'],
-#                       error_y='error_plus', error_y_minus='error_minus')
-#     # return fig1, fig2
-#     return fig2
+@callback(
+    Output('view-content', 'children'),
+    Input('select-view', 'value')
+)
+def render_content(tab):
+    if tab == 'week-view':
+        return (
+            html.H2('Best players per week'),
+            html.Div(id='weekly-selectors', children=[
+                html.Div([
+                    html.P('Season'),
+                    dcc.Dropdown(options=df['season'].unique(), value='2024', id='season-dropdown', style={'width': '100px'}),
+                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+                html.Div([
+                    html.P('Week'),
+                    dcc.Dropdown(options=df['week'].unique(), value='10', id='week-dropdown', style={'width': '100px'}),
+                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+                html.Div([
+                    html.P('Position'),
+                    dcc.Dropdown(options=["All", "QB", "RB/WR/TE", "K"], value='All', id='position-dropdown', style={'width': '100px'}),
+                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+                html.Div([
+                    html.P('Order by'),
+                    dcc.Dropdown(options=['fantasy_points', 'predicted_fantasy'], value='predicted_fantasy', id='order-by-dropdown', style={'width': '200px'})
+                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+            ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '20px'}),
+            dcc.Graph(figure={}, id='scatter')
+        )
 
 @callback(
     Output(component_id='scatter', component_property='figure'),
