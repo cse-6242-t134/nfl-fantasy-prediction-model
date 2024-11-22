@@ -10,7 +10,7 @@ Desription:
 This repository contains the necessary files needed to run the interactive nfl fantasy player prediction tool. Below will include the following relevant files:
 - nfl_data_loader.py 
     - Helper module that helps prepare and pull the raw data used to generate the predictions
-- build_nfl_model.py
+- build_nfl_model_prod.py
     - Module that is used to perform all the modeling from start to finish.
     - Includes feature engineering, model training, and generating predictions
 - INCLUDE FILE NAME FOR WHATEVER IS USED FOR THE VIZ  
@@ -57,7 +57,7 @@ This will ensure that you have the necessary packages needed to run the code usi
 This step requires running the file "generate_backend_data.py" in the terminal. Run the following command in the terminal:
 
     - python .\generate_nfl_prediction_data.py
-    
+
 The output of running this command should provide you a final csv that will be saved to your working directory. This csv is what will be used 
 for the backend of the interactive visualization. NOTE: This will take time due to generating features and training multiple models.
 If you are less concerned about the accuracy of the model, go into the "generate_backend_data.py" file and change the start date to a more recent
