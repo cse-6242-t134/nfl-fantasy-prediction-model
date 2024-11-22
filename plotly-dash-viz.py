@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 
 df = pd.read_csv('fantasy_prediction_data.csv')
 
-df["player_id"] = df["player_id"].fillna(df["kicker_player_id"])
+# df["player_id"] = df["player_id"].fillna(df["kicker_player_id"])
 df["player_name"] = df["player_name"].fillna(df["kicker_player_name"])
 
 # Initialize the app
@@ -54,7 +54,7 @@ def render_content(tab):
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
                     html.P('Order by'),
-                    dcc.Dropdown(options=['fantasy_points', 'predicted_fantasy'], value='predicted_fantasy', id='order-by-dropdown', style={'width': '200px'})
+                    dcc.Dropdown(options=['fantasy_points_ppr', 'predicted_fantasy'], value='predicted_fantasy', id='order-by-dropdown', style={'width': '200px'})
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
             ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '20px'}),
             dcc.Graph(figure={}, id='scatter')
@@ -77,7 +77,7 @@ def render_content(tab):
                 # ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
                     html.P('Select players'),
-                    dcc.Dropdown(options=np.sort(df["player_name"].unique()) , value='players', id='select-players-dropdown', multi=True, style={'width': '200px'})
+                    dcc.Dropdown(options=np.sort(df["player_name"].unique().tolist()) , value='players', id='select-players-dropdown', multi=True, style={'width': '200px'})
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
                     html.P('Show Prediction Range'),
@@ -118,7 +118,7 @@ def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_ch
     # Add actual fantasy points (no error bars)
     fig.add_trace(go.Scatter(
         x=df_viz['player_name'],
-        y=df_viz['fantasy_points'],
+        y=df_viz['fantasy_points_ppr'],
         name='Actual Points',
         mode='markers'
     ))
@@ -143,6 +143,7 @@ def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_ch
      Input(component_id='pred-range-dropdown', component_property='value')]
 )
 def update_season_graph(season_chosen, week_chosen, select_players_chosen, pred_range_chosen):
+    
     df_viz = (df[(df['season'] == int(season_chosen)) & (df['player_name'].isin(select_players_chosen))]
               .sort_values(by='week', ascending=True))
     
@@ -167,18 +168,18 @@ def update_season_graph(season_chosen, week_chosen, select_players_chosen, pred_
     for player in select_players_chosen:
         df_player = df_viz[df_viz['player_name'] == player]
         fig.add_trace(go.Scatter(
-            x=df_player[df_player['week'] < int(week_chosen)]['week'],
-            y=df_player[df_player['week'] < int(week_chosen)]['fantasy_points'],
-            name=f"{player} actual",
-            mode='lines+markers',
-            marker_color=fig.layout['template']['layout']['colorway'][i]
-        ))
-        fig.add_trace(go.Scatter(
             x=np.concatenate([df_player[df_player['week'] == int(week_chosen)-1]['week'], df_player[df_player['week'] >= int(week_chosen)]['week']]),
-            y=np.concatenate([df_player[df_player['week'] == int(week_chosen)-1]['fantasy_points'], df_player[df_player['week'] >= int(week_chosen)]['predicted_fantasy']]),
+            y=np.concatenate([df_player[df_player['week'] == int(week_chosen)-1]['fantasy_points_ppr'], df_player[df_player['week'] >= int(week_chosen)]['predicted_fantasy']]),
             name=f"{player} predicted",
             mode='lines+markers',
             line=dict(dash='dash'),
+            marker_color=fig.layout['template']['layout']['colorway'][i]
+        ))
+        fig.add_trace(go.Scatter(
+            x=df_player[df_player['week'] < int(week_chosen)]['week'],
+            y=df_player[df_player['week'] < int(week_chosen)]['fantasy_points_ppr'],
+            name=f"{player} actual",
+            mode='lines+markers',
             marker_color=fig.layout['template']['layout']['colorway'][i]
         ))
         i += 1
