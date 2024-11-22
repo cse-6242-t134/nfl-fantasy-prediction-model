@@ -46,7 +46,7 @@ def render_content(tab):
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
                     html.P('Week'),
-                    dcc.Dropdown(options=df['week'].unique(), value='10', id='week-dropdown', style={'width': '100px'}),
+                    dcc.Dropdown(options=np.sort(df['week'].unique().tolist()), value='10', id='week-dropdown', style={'width': '100px'}),
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
                     html.P('Position'),
@@ -69,7 +69,7 @@ def render_content(tab):
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
                     html.P('Week'),
-                    dcc.Dropdown(options=df['week'].unique(), value='10', id='week-dropdown', style={'width': '100px'}),
+                    dcc.Dropdown(options=np.sort(df['week'].unique().tolist()), value='10', id='week-dropdown', style={'width': '100px'}),
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 # html.Div([
                 #     html.P('Position'),
@@ -125,7 +125,7 @@ def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_ch
     
     # Update layout
     fig.update_layout(
-        title='Actual vs Predicted Fantasy Points',
+        # title='Actual vs Predicted Fantasy Points',
         xaxis_title="Player Name",
         yaxis_title="Fantasy Points",
         legend_title="Point Type",
@@ -188,7 +188,7 @@ def update_season_graph(season_chosen, week_chosen, select_players_chosen, pred_
     
     # Update layout
     fig.update_layout(
-        title='Actual vs Predicted Fantasy Points',
+        # title='Actual vs Predicted Fantasy Points',
         xaxis_title="Player Name",
         yaxis_title="Fantasy Points",
         legend_title="Point Type",
