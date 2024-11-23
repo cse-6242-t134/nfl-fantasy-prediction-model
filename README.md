@@ -69,21 +69,7 @@ date ie. (2015). This should reduce run time but decrease the amount of data all
 
 #### *3. Visualization Re-Produce Process*
 
-##### Visualization #1:
-This is a step-by-step process to reproduce the plots deployed at:
-  - https://cse-6242-t134.github.io
-
-Make sure the data file created by *generate_nfl_prediction_data.py* is located at `fantasy_prediction_data.csv`.
-
- Run the following command in the terminal:
-```
-python .\generate_nfl_prediction_plots.py
-```
-
-The output of running this command should provide you an index html file that will be saved to your working directory. This html is what will be used 
-for the deployment to github pages.
-
-##### Visualization #2:
+##### Visualization (Final):
 Make sure the data file created by *generate_nfl_prediction_data.py* is located at `fantasy_prediction_data.csv`.
 
  Run the following command in the terminal:
@@ -97,3 +83,22 @@ Dash is running on http://127.0.0.1:8050/
 ```
 
 Navigate to this URL in your browser.
+
+
+##### Visualization (Prototype):
+
+**Note, this viz was the original skeleton draft for the interactive tool. Please refer to and run the final version**
+
+This is a step-by-step process to reproduce the plots deployed at:
+  - https://cse-6242-t134.github.io
+
+
+Make sure the data file created by *generate_nfl_prediction_data.py* is located at `fantasy_prediction_data.csv`.
+
+ Run the following command in the terminal:
+```
+python .\generate_nfl_prediction_plots.py
+```
+
+The output of running this command should provide you an index html file that will be saved to your working directory. This html is what will be used 
+for the deployment to github pages.
