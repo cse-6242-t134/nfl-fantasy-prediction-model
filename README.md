@@ -11,18 +11,17 @@ Parker Brotman
 
 ## Desription:
 This repository contains the necessary files needed to run the interactive nfl fantasy player prediction tool. Below will include the following relevant files:
-- nfl_data_loader.py 
-    - Helper module that helps prepare and pull the raw data used to generate the predictions
 - build_nfl_model_prod.py
     - Module that is used to perform all the modeling from start to finish.
     - Includes feature engineering, model training, and generating predictions
-- INCLUDE FILE NAME FOR WHATEVER IS USED FOR THE VIZ  
 - requirements.txt 
     - Text file that lists out the required packages needed to use the tool properly
-- verify_requirements.py 
-    - Module that checks if the necessary required packages are installed in the current users working directory
+- plotly-dash-viz.py 
+    - Module to run for final visualization tool
 - generate_nfl_prediction_data.py
     - Python script used to aggregate the csv used for the backend of the interactive tool.
+- generate_nfl_prediction_plots.py
+    - Python script used to generate fantasy model interactive visualization for season 2024.
 
 The steps that are outlined below are imperative to using the tool properly.
 
@@ -85,11 +84,11 @@ Dash is running on http://127.0.0.1:8050/
 Navigate to this URL in your browser.
 
 
-##### Visualization (Prototype):
+##### Visualization (Deployed):
 
-**Note, this viz was the original skeleton draft for the interactive tool. Please refer to and run the final version**
+**Note, this is a prototype interactive viz tool on season 2024 for cross-checking with the final interactive tool. Please refer to and run the final version for all seasons.**
 
-This is a step-by-step process to reproduce the plots deployed at:
+A step-by-step process to reproduce the plots deployed at:
   - https://cse-6242-t134.github.io
 
 
@@ -100,5 +99,5 @@ Make sure the data file created by *generate_nfl_prediction_data.py* is located 
 python .\generate_nfl_prediction_plots.py
 ```
 
-The output of running this command should provide you an index html file that will be saved to your working directory. This html is what will be used 
+The output of running this command should provide you an `index.html` file that will be saved to your working directory. This `html` is the homepage for interactive viz and which will be used 
 for the deployment to github pages.
