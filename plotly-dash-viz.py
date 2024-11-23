@@ -48,6 +48,10 @@ def render_content(tab):
                     dcc.Dropdown(options=['All', 'FLEX', 'QB', 'RB', 'WR', 'TE', 'K'], value='All', id='position-dropdown', style={'width': '100px'}),
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
+                    html.P('Num. Players'),
+                    dcc.Dropdown(options=[8, 16, 24, 32], value='32', id='num-players-dropdown', style={'width': '100px'})
+                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+                html.Div([
                     html.P('Data'),
                     dcc.Dropdown(options=['Actual', 'Predicted'], value='Predicted', multi=False, id='order-by-dropdown', style={'width': '200px'})
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
@@ -84,21 +88,23 @@ def render_content(tab):
     [Input(component_id='season-dropdown', component_property='value'),
      Input(component_id='week-dropdown', component_property='value'),
      Input(component_id='position-dropdown', component_property='value'),
+     Input(component_id='num-players-dropdown', component_property='value'),
      Input(component_id='order-by-dropdown', component_property='value')]
 )
-def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_chosen):
+def update_weekly_graph(season_chosen, week_chosen, position_chosen, num_players_chosen, order_by_chosen):
     
     # Create two separate traces
     fig = go.Figure()
+
+    df_viz = df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
+    if position_chosen == "FLEX":
+        df_viz = df_viz[df_viz['position'].isin(['RB', 'WR', 'TE', 'FB'])]
+    elif position_chosen != 'All':
+        df_viz = df_viz[df_viz['position'] == position_chosen]
     
     if order_by_chosen == 'Predicted':
 
-        df_viz = df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
-        if position_chosen == "FLEX":
-            df_viz = df_viz[df_viz['position'].isin(['RB', 'WR', 'TE', 'FB'])]
-        elif position_chosen != 'All':
-            df_viz = df_viz[df_viz['position'] == position_chosen]
-        df_viz = df_viz.sort_values(by="predicted_fantasy", ascending=False).head(32)
+        df_viz = df_viz.sort_values(by="predicted_fantasy", ascending=False).head(int(num_players_chosen))
         
         # Add predicted_fantasy with error bars
         fig.add_trace(go.Scatter(
@@ -114,9 +120,7 @@ def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_ch
     ))
 
     if order_by_chosen == 'Actual':
-        df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
-              .sort_values(by="fantasy_points_ppr", ascending=False)
-              .head(32))
+        df_viz = df_viz.sort_values(by="fantasy_points_ppr", ascending=False).head(int(num_players_chosen))
         
         # Add actual fantasy points (no error bars)
         fig.add_trace(go.Scatter(
