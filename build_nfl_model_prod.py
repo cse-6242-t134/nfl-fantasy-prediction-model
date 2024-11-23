@@ -853,7 +853,7 @@ class NFLModel:
             'xp_attempt_33y': 'sum',
             'xp_made_33y': 'sum',
         })
-        df_kicker_game_level.rename(columns = {'defteam':'opponent_team','kicker_player_id':'player_id'} , inplace = True )
+        df_kicker_game_level.rename(columns = {'defteam':'opponent_team','kicker_player_id':'player_id','kicker_player_name':'player_name'} , inplace = True )
         df_kicker_game_level = df_kicker_game_level.merge(self.weekly_df[['player_id','week','season','fantasy_points_ppr']], how = 'inner',on = ['player_id','week','season'])
 
         df_kicker_game_level["home"] = df_kicker_game_level["home_team"] == df_kicker_game_level["posteam"]
@@ -877,7 +877,7 @@ class NFLModel:
 
         # Apply the 'calc_agg_stats' function to each kicker's data
         df_kicker_game_level_agg = df_kicker_game_level.groupby(
-            ['kicker_player_name', 'player_id'], 
+            ['player_name', 'player_id'], 
             group_keys=False
         ).apply(
             self.calc_agg_stats_kicker_d, 
