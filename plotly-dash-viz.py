@@ -51,6 +51,10 @@ def render_content(tab):
                     html.P('Data'),
                     dcc.Dropdown(options=['Actual', 'Predicted'], value='Predicted', multi=False, id='order-by-dropdown', style={'width': '200px'})
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
+                # html.Div([
+                #     html.P('Show Prediction Range'),
+                #     dcc.Dropdown(options=['Yes', 'No'], value='Yes', id='pred-range-dropdown', style={'width': '100px'})
+                # ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
             ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '20px'}),
             dcc.Graph(figure={}, id='scatter')
         )
@@ -69,10 +73,6 @@ def render_content(tab):
                 html.Div([
                     html.P('Select players'),
                     dcc.Dropdown(options=np.sort(df["player_name"].unique().tolist()) , value='players', id='select-players-dropdown', multi=True, style={'width': '200px'})
-                ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
-                html.Div([
-                    html.P('Show Prediction Range'),
-                    dcc.Dropdown(options=['Yes', 'No'], value='Yes', id='pred-range-dropdown', style={'width': '100px'})
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
             ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '20px'}),
             dcc.Graph(figure={}, id='season-line-graph')
@@ -141,10 +141,9 @@ def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_ch
     Output(component_id='season-line-graph', component_property='figure'),
     [Input(component_id='season-dropdown', component_property='value'),
      Input(component_id='week-dropdown', component_property='value'),
-     Input(component_id='select-players-dropdown', component_property='value'),
-     Input(component_id='pred-range-dropdown', component_property='value')]
+     Input(component_id='select-players-dropdown', component_property='value')]
 )
-def update_season_graph(season_chosen, week_chosen, select_players_chosen, pred_range_chosen):
+def update_season_graph(season_chosen, week_chosen, select_players_chosen):
     
     df_viz = (df[(df['season'] == int(season_chosen)) & (df['player_name'].isin(select_players_chosen))]
               .sort_values(by='week', ascending=True))
