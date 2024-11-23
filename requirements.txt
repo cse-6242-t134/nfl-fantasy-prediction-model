@@ -7,3 +7,4 @@ nfl_data_py==0.3.3
 seaborn==0.13.2
 matplotlib==3.9.2
 ipykernel==6.29.5
+bokeh==3.6.1
