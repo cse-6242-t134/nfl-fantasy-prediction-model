@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 df = pd.read_csv('fantasy_prediction_data.csv')
 
 # df["player_id"] = df["player_id"].fillna(df["kicker_player_id"])
-df["player_name"] = df["player_name"].fillna(df["kicker_player_name"])
+# df["player_name"] = df["player_name"].fillna(df["kicker_player_name"])
 
 # Initialize the app
 app = Dash(__name__, suppress_callback_exceptions=True)

@@ -49,6 +49,10 @@ predictions_rw = rw_obj.features_df.copy()
 
 predictions_rw['predicted_fantasy'] = rw_obj.lr_model.predict(x_scaled)
 
+predictions_rw.drop(columns = ['player_name'], inplace = True)
+
+predictions_rw = predictions_rw.merge(roster_data[['player_id','player_name']], how = 'inner',on = ['player_id'])
+
 
 
 
