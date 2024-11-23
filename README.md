@@ -75,7 +75,7 @@ date ie. (2015). This should reduce run time but decrease the amount of data all
 - Make sure your generated_ndfl_prediction_data file run is located `fantasy_prediction_data.csv`
  Run the following command in the terminal:
 ```
-python .\generate_nfl_prediction_data.py
+python .\generate_nfl_prediction_plots.py
 ```
 
 The output of running this command should provide you an index html file that will be saved to your working directory. This html is what will be used 
