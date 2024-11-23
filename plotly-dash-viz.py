@@ -187,7 +187,7 @@ def update_season_graph(season_chosen, week_chosen, select_players_chosen):
     
     # Update layout
     fig.update_layout(
-        xaxis_title="Player Name",
+        xaxis_title="Week",
         yaxis_title="Fantasy Points",
         legend_title="Point Type",
         showlegend=True,
