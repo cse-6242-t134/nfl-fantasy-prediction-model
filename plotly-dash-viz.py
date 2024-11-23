@@ -45,7 +45,7 @@ def render_content(tab):
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
                     html.P('Position'),
-                    dcc.Dropdown(options=["All", "QB", "RB/WR/TE", "K"], value='All', id='position-dropdown', style={'width': '100px'}),
+                    dcc.Dropdown(options=['All', 'FLEX', 'QB', 'RB', 'WR', 'TE', 'K'], value='All', id='position-dropdown', style={'width': '100px'}),
                 ], style={'display': 'flex', 'flex-direction': 'row', 'gap': '5px'}),
                 html.Div([
                     html.P('Data'),
@@ -93,15 +93,18 @@ def update_weekly_graph(season_chosen, week_chosen, position_chosen, order_by_ch
     
     if order_by_chosen == 'Predicted':
 
-        df_viz = (df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
-              .sort_values(by="predicted_fantasy", ascending=False)
-              .head(32))
+        df_viz = df[(df['week'] == int(week_chosen)) & (df['season'] == int(season_chosen))]
+        if position_chosen == "FLEX":
+            df_viz = df_viz[df_viz['position'].isin(['RB', 'WR', 'TE', 'FB'])]
+        elif position_chosen != 'All':
+            df_viz = df_viz[df_viz['position'] == position_chosen]
+        df_viz = df_viz.sort_values(by="predicted_fantasy", ascending=False).head(32)
         
         # Add predicted_fantasy with error bars
         fig.add_trace(go.Scatter(
         x=df_viz['player_name'],
         y=df_viz['predicted_fantasy'],
-        name='predicted_fantasy',
+        name='Predicted Points',
         mode='markers',
         # error_y=dict(
         #     type='data',
