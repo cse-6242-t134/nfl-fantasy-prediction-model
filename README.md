@@ -77,3 +77,6 @@ date ie. (2015). This should reduce run time but decrease the amount of data all
 ```
 python .\generate_nfl_prediction_data.py
 ```
+
+The output of running this command should provide you an index html file that will be saved to your working directory. This html is what will be used 
+for the deployment to github pages.
