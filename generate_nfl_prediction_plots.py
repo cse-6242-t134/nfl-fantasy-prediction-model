@@ -15,6 +15,7 @@ def visualize(datam = None, viz = None):
     src.drop("Unnamed: 0", axis=1, inplace=True) if "Unnamed: 0" in src.columns else None
     output_file(viz, title = "Team 134: Fantasy Points Visualization")
     src = src[src['season'] == 2024]
+    src[['passing_yards', 'passing_tds', 'rushing_yards', 'rushing_tds', 'receptions', 'interceptions']] = src[['passing_yards', 'passing_tds', 'rushing_yards', 'rushing_tds', 'receptions', 'interceptions']].fillna(0)
     src['weeks'] = 'Week ' + src['week'].astype(str)
     Viridis = palettes.Viridis256
     colors1 = ['blue'] * len(src)
@@ -24,10 +25,10 @@ def visualize(datam = None, viz = None):
     src['colors3'] = random.choices(Viridis, k=len(src))
     src['predicted_fantasy'] = src['predicted_fantasy'].astype(float)
     src['predicted_fantasy'] = src['predicted_fantasy'].round(1)
-    src['fantasy_points'] = src['fantasy_points'].round(1)
+    src['fantasy_points_ppr'] = src['fantasy_points_ppr'].round(1)
     src = src.sort_values(by='predicted_fantasy', ascending=False)
     dest = src.copy()
-    dest.loc[:, ['predicted_fantasy', 'fantasy_points','colors1', 'colors2']] = '' 
+    dest.loc[:, ['predicted_fantasy', 'fantasy_points_ppr','colors1', 'colors2']] = '' 
     source = ColumnDataSource(src)
     srctarget = dest
     src2 = src.head(32)
@@ -168,7 +169,7 @@ def visualize(datam = None, viz = None):
                 p2.x_range.factors = pll2;
             }
             const inlo1 = Math.min(...sc.data['predicted_fantasy'])
-            const inlo2 = Math.min(...sc.data['fantasy_points'])
+            const inlo2 = Math.min(...sc.data['fantasy_points_ppr'])
             const inlo3 = Math.min(...sc2.data['predicted_fantasy'])
             lo = (lo > inlo1 && inlo1 < 0) ? inlo1 : 0;
             lo = (lo > inlo2 && inlo2 < 0) ? inlo2 : 0;
@@ -248,7 +249,7 @@ def visualize(datam = None, viz = None):
     ti.js_on_change('value', CustomJS(args=dict(ds=sort_df2, s=multi_select_player),
                                     code="s.options = ds.filter(i => i.toLowerCase().includes(cb_obj.value.toLowerCase()));"))
     select1 = Select(options= sort_df1, value = [], title = 'Week')
-    p1 = figure(tools=TOOLS, toolbar_location="above", width=1200, height = 725,x_range = FactorRange(factors=sorted(list(set(stateChange.data['player_name'])))),title="NFL Fantasy Points predicted_fantasy")
+    p1 = figure(tools=TOOLS, toolbar_location="above", width=1200, height = 725,x_range = FactorRange(factors=sorted(list(set(stateChange.data['player_name'])))),title="NFL Fantasy Points Predicted for Players (Season 2024)")
     p1.toolbar.logo = "grey"
     p1.background_fill_color = "#d6cdcb"
     p1.xaxis.axis_label = "Players"
@@ -260,17 +261,18 @@ def visualize(datam = None, viz = None):
     p1.hover.tooltips = [
         ("Player name", "@player_name"),
         ("Predicted Point", "@predicted_fantasy{1.1}"),
-        ("Fantasy Point:", "@fantasy_points{1.1}"),
-        ("Season Avg:", "@fantasy_points_mean_season"),
-        ("Def Allowed", "@points_allowed_mean_season"),
-        ("Passing Yards", "@passing_yards_total_season"),
-        ("Passing TD", "@pass_touchdown_total_season"),
-        ("Rushing Yards", "@rushing_yards_total_season"),
-        ("Touchdown Mean Season", "@touchdown_mean_season"),
+        ("Fantasy Point:", "@fantasy_points_ppr{1.1}"),
+        ("Positions", "@position"),
+        ("Passing Yards", "@passing_yards"),
+        ("Passing TD", "@passing_tds"),
+        ("Rushing Yards", "@rushing_yards"),
+        ("Rushing TD", "@rushing_tds"),
+        ("Receptions", "@receptions"),
+        ("Interceptions", "@interceptions"),
     ]
     scatterplot = p1.scatter("player_name", "predicted_fantasy", size=10, source=stateChange, legend_label = 'predicted_fantasy',
             color='colors1', line_color="black", alpha=0.6)
-    scatterplot2 = p1.scatter("player_name", "fantasy_points", size=10, source=stateChange, legend_label = 'Fantasy Points',
+    scatterplot2 = p1.scatter("player_name", "fantasy_points_ppr", size=10, source=stateChange, legend_label = 'Fantasy Points',
             color='colors2', line_color="black", alpha=0.6)
 
     p1.legend.location = "top_left"
@@ -285,7 +287,7 @@ def visualize(datam = None, viz = None):
 
     week_l = sorted(src['week'].unique().tolist())
     week_l = ['Week ' + str(i) for i in week_l]
-    p3 = figure(tools=TOOLS, toolbar_location="above", width=1200, height = 725, x_range = week_l, title="NFL Fantasy Points predicted_fantasy")
+    p3 = figure(tools=TOOLS, toolbar_location="above", width=1200, height = 725, x_range = week_l, title="NFL Fantasy Points Predicted for Weeks (Season 2024)")
     p3.toolbar.logo = "grey"
     p3.background_fill_color = "#d6cdcb"
     p3.xaxis.axis_label = "Weeks"
@@ -297,17 +299,18 @@ def visualize(datam = None, viz = None):
     p3.hover.tooltips = [
         ("Player name", "@player_name"),
         ("Predicted Point", "@predicted_fantasy{1.1}"),
-        ("Fantasy Point:", "@fantasy_points{1.1}"),
-        ("Season Avg:", "@fantasy_points_mean_season"),
-        ("Def Allowed", "@points_allowed_mean_season"),
-        ("Passing Yards", "@passing_yards_total_season"),
-        ("Passing TD", "@pass_touchdown_total_season"),
-        ("Rushing Yards", "@rushing_yards_total_season"),
-        ("Touchdown Mean Season", "@touchdown_mean_season"),
+        ("Fantasy Point:", "@fantasy_points_ppr{1.1}"),
+        ("Positions", "@position"),
+        ("Passing Yards", "@passing_yards"),
+        ("Passing TD", "@passing_tds"),
+        ("Rushing Yards", "@rushing_yards"),
+        ("Rushing TD", "@rushing_tds"),
+        ("Receptions", "@receptions"),
+        ("Interceptions", "@interceptions"),
     ]
     spl = p3.scatter("weeks", "predicted_fantasy", size=10, source=stateChange,legend_label = 'predicted_fantasy',
             color='colors1', line_color="black", alpha=0.6)
-    spl2 = p3.scatter("weeks", "fantasy_points", size=10, source=stateChange,legend_label = 'Fantasy Points',
+    spl2 = p3.scatter("weeks", "fantasy_points_ppr", size=10, source=stateChange,legend_label = 'Fantasy Points',
             color='colors2', line_color="black", alpha=0.6)
 
     p3.legend.location = "top_left"
@@ -319,7 +322,7 @@ def visualize(datam = None, viz = None):
     p3.legend.background_fill_color = "#d6cdcb"
     p3.legend.background_fill_alpha = 0.2
     player_list = list(sc2.data['player_name'])
-    p2 = figure(x_range = FactorRange(factors=list(set(sorted(player_list, key=lambda x: sc2.data['predicted_fantasy'][player_list.index(x)], reverse=True)))), tools=TOOLS, toolbar_location="above", x_axis_label = 'Player Name', y_axis_label = 'Fantasy Points',  width=1200, height = 725)
+    p2 = figure(x_range = FactorRange(factors=list(set(sorted(player_list, key=lambda x: sc2.data['predicted_fantasy'][player_list.index(x)], reverse=True)))), tools=TOOLS, toolbar_location="above", x_axis_label = 'Player Name', y_axis_label = 'Fantasy Points',  width=1200, height = 725, title="NFL Fantasy Points Predicted Fantasy Bar Plot on players (Season 2024)")
     p2.grid.grid_line_color = "white"
     p2.toolbar.logo = "grey"
     p2.background_fill_color = "#d6cdcb"
@@ -330,14 +333,15 @@ def visualize(datam = None, viz = None):
 
     p2.hover.tooltips = [
         ("Player name", "@player_name"),
-        ("Proj Point", "@predicted_fantasy{1.1}"),
-        ("Actual Point:", "@fantasy_points{1.1}"),
-        ("Season Avg:", "@fantasy_points_mean_season"),
-        ("Def Allowed", "@points_allowed_mean_season"),
-        ("Passing Yards", "@passing_yards_total_season"),
-        ("Passing TD", "@pass_touchdown_total_season"),
-        ("Rushing Yards", "@rushing_yards_total_season"),
-        ("Touchdown Mean Season", "@touchdown_mean_season"),
+        ("Predicted Point", "@predicted_fantasy{1.1}"),
+        ("Fantasy Point:", "@fantasy_points_ppr{1.1}"),
+        ("Positions", "@position"),
+        ("Passing Yards", "@passing_yards"),
+        ("Passing TD", "@passing_tds"),
+        ("Rushing Yards", "@rushing_yards"),
+        ("Rushing TD", "@rushing_tds"),
+        ("Receptions", "@receptions"),
+        ("Interceptions", "@interceptions"),
     ]
 
     # plot bar chart glyph
@@ -354,23 +358,23 @@ def visualize(datam = None, viz = None):
                 TableColumn(field="player_name", title="Players_name"),
                 TableColumn(field="week", title="Week"),
                 TableColumn(field="season", title="Seasons"),
-                TableColumn(field="fantasy_points", title="Fantasy points"),
+                TableColumn(field="fantasy_points_ppr", title="Fantasy points"),
                 TableColumn(field="predicted_fantasy", title="Prediction Points"),
             ]
 
     # data table for scatter
-    dtab = DataTable(source=stateChange, columns=columns, width=400, height=400)
+    dtab = DataTable(source=stateChange, columns=columns, width=600, height=200)
     # data table for bar
     columns = [
                 TableColumn(field="player_name", title="Players_name"),
                 TableColumn(field="week", title="Week"),
                 TableColumn(field="season", title="Seasons"),
-                TableColumn(field="fantasy_points", title="Fantasy points"),
+                TableColumn(field="fantasy_points_ppr", title="Fantasy points"),
                 TableColumn(field="predicted_fantasy", title="Prediction Points"),
             ]
 
     # data table
-    dtab2 = DataTable(source=sc2, columns=columns, width=400, height=400)
+    dtab2 = DataTable(source=sc2, columns=columns, width=600, height=200)
     d1 = Button(label="Download Data for Scatter", button_type="primary")
     d2 = Button(label="Download Data for Bar Plot", button_type="primary")
 
@@ -416,8 +420,5 @@ def visualize(datam = None, viz = None):
     save(layout)  # save the plot
     show(layout)
 
-    
-visualize(datam = './predictions/kicker_predictions.csv', viz = 'kicker_predictions.html')
-visualize(datam = './predictions/qb_predictions.csv', viz = 'qb_predictions.html')
-visualize(datam = './predictions/rw_predictions.csv', viz = 'rw_predictions.html')
+
 visualize(datam = './fantasy_prediction_data.csv', viz = 'index.html')
